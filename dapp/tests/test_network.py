@@ -44,3 +44,22 @@ class TestNetworkReading:
         assert kwargs["sp"].flat_fee is True
         assert kwargs["foreign_apps"] == [9]
         assert kwargs["other_boxes"] == [(9, network.decode_address(ADDRESS))]
+
+
+class TestNetworkCall:
+    """Testing class for :py:func:`dapp.network._call`."""
+
+    def _failing_call(self, mocker, message):
+        mocked_atc = mocker.patch("dapp.network.AtomicTransactionComposer")
+        mocked_atc.return_value.execute.side_effect = AlgodHTTPError("rejected", 400)
+        mocker.patch("dapp.network.error_message", return_value=message)
+        return network._call(mocker.MagicMock(), 5, mocker.MagicMock(), "vote", [])
+
+    def test_network_call_names_the_failed_assert(self, mocker):
+        with pytest.raises(AlgodHTTPError, match="Voting has ended .rejected.") as info:
+            self._failing_call(mocker, "Voting has ended")
+        assert info.value.code == 400
+
+    def test_network_call_raises_other_errors_unchanged(self, mocker):
+        with pytest.raises(AlgodHTTPError, match="^rejected$"):
+            self._failing_call(mocker, None)

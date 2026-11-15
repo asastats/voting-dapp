@@ -13,6 +13,7 @@ from .helpers import (
     ballot_box_name,
     decode_ballot,
     decode_session,
+    error_message,
     session_box_name,
 )
 
@@ -45,7 +46,13 @@ def _call(client, app_id, parameters, method, args, boxes=(), **kwargs):
         boxes=[(app_id, name) for name in boxes] + kwargs.pop("other_boxes", []),
         **kwargs,
     )
-    return atc.execute(client, 4).abi_results[0]
+    try:
+        return atc.execute(client, 4).abi_results[0]
+    except AlgodHTTPError as exception:
+        message = error_message(app_id, exception)
+        if message is None:
+            raise
+        raise AlgodHTTPError(f"{message} ({exception})", exception.code) from exception
 
 
 # # APPLICATION

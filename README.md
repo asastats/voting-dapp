@@ -83,9 +83,12 @@ Deploy to testnet and fund the application account, which pays for the boxes
 
     python -m dapp.deploy
 
-Run a session:
+Run a session. The three numbers are the snapshot, start and end rounds: the
+snapshot comes before the start, and the start has to be ahead of the latest
+round, which `round` prints. A day is about 30,000 rounds.
 
-    python -m dapp.sessions create testnet proposal.md 55000000 55250000 55500000
+    python -m dapp.sessions round testnet
+    python -m dapp.sessions create testnet proposal.md 69290000 69500000 69710000
     python -m dapp.sessions snapshot testnet 1 snapshot.json
     python -m dapp.sessions seal testnet 1 snapshot.json
     python -m dapp.sessions show testnet 1

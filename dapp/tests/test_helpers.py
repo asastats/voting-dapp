@@ -105,6 +105,27 @@ class TestHelpersContract:
         assert helpers.compile_program(client, b"source") == b"\x01\x02\x03"
         client.compile.assert_called_once_with("source")
 
+    def test_helpers_error_message_for_failed_assert(self):
+        contract_json = helpers.read_json(helpers.ARTIFACTS / "VotingDApp.arc56.json")
+        entry = next(
+            entry
+            for entry in contract_json["sourceInfo"]["approval"]["sourceInfo"]
+            if entry.get("errorMessage") == "Start round must be in the future"
+        )
+        exception = Exception(
+            f"logic eval error: assert failed pc={entry['pc'][0]}. "
+            f"Details: app=505, pc={entry['pc'][0]}, opcodes=dig 10; <; assert"
+        )
+        assert helpers.error_message(505, exception) == (
+            "Start round must be in the future"
+        )
+
+    def test_helpers_error_message_for_unknown_pc(self):
+        assert helpers.error_message(505, Exception("app=505, pc=999999")) is None
+
+    def test_helpers_error_message_for_another_app(self):
+        assert helpers.error_message(505, Exception("app=9, pc=299, opcodes")) is None
+
     def test_helpers_load_contract(self):
         contract = helpers.load_contract()
         assert contract.name == "VotingDApp"

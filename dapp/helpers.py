@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 
 from algosdk.abi.contract import Contract
@@ -128,6 +129,32 @@ def compile_program(client, source_code):
     :return: bytes
     """
     return base64.b64decode(client.compile(source_code.decode("utf-8"))["result"])
+
+
+def error_message(app_id, exception):
+    """Return the contract's message for a failed assert, None if it isn't one.
+
+    :param app_id: Voting dApp identifier the call was sent to
+    :type app_id: int
+    :param exception: error raised by the node for a rejected transaction
+    :type exception: :class:`AlgodHTTPError`
+    :var match: program counter of the failed assert in this application
+    :type match: :class:`re.Match`
+    :return: str
+    """
+    match = re.search(rf"app={app_id}, pc=(\d+)", str(exception))
+    if not match:
+        return None
+
+    contract_json = read_json(ARTIFACTS / f"{DAPP_NAME}.arc56.json")
+    return next(
+        (
+            entry.get("errorMessage")
+            for entry in contract_json["sourceInfo"]["approval"]["sourceInfo"]
+            if int(match.group(1)) in entry["pc"]
+        ),
+        None,
+    )
 
 
 def load_contract():

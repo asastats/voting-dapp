@@ -6,11 +6,18 @@ Run a voting session
 
 All the commands are run from the repository's root as the dApp's admin.
 
-Create a session for a proposal file, with the snapshot, start and end rounds:
+Create a session for a proposal file, with the snapshot, start and end rounds. The
+snapshot round comes before the start round, and the start round has to be ahead of
+the network's latest round, which the `round` command prints. A day is about 30,000
+rounds.
 
 .. code-block:: bash
 
-    python -m dapp.sessions create testnet proposal.md 55000000 55250000 55500000
+    python -m dapp.sessions round testnet
+    python -m dapp.sessions create testnet proposal.md 69290000 69500000 69710000
+
+A call the smart contract rejects ends with the contract's own message, for example
+`Start round must be in the future`.
 
 The command takes `--options-count` (2–8, default 3), `--quorum` (micro-votes,
 default 0) and `--threshold NUM DEN` (default `1 2`; at least a half).

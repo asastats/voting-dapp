@@ -143,6 +143,16 @@ class TestSessionsCommands:
         assert '"status": "sealed"' in output
         assert "A 30 - 0\nB 5 2 5\n" in output
 
+    def test_sessions_current_round(self, mocker, capsys):
+        env = mocker.patch("dapp.sessions.environment_variables").return_value
+        mocked_client = mocker.patch("dapp.sessions.algod_client")
+        mocked_client.return_value.status.return_value = {"last-round": 777}
+
+        assert sessions.current_round("testnet") == 777
+
+        mocked_client.assert_called_once_with(env, "testnet")
+        assert "The latest round on testnet is 777" in capsys.readouterr().out
+
     def test_sessions_show_for_missing_session(self, mocker, connection, capsys):
         mocker.patch("dapp.sessions.session_values", return_value=None)
 
@@ -185,3 +195,8 @@ class TestSessionsMain:
         mocked = mocker.patch(f"dapp.sessions.{command}")
         sessions.main([command, "testnet", "4"])
         mocked.assert_called_once_with(network="testnet", session_id=4)
+
+    def test_sessions_main_round(self, mocker):
+        mocked = mocker.patch("dapp.sessions.current_round")
+        sessions.main(["round", "mainnet"])
+        mocked.assert_called_once_with(network="mainnet")

@@ -114,6 +114,18 @@ def close(network, session_id):
     show(network, session_id)
 
 
+def current_round(network):
+    """Print and return the latest round of `network`.
+
+    :param network: network to connect to (e.g., "testnet")
+    :type network: str
+    :return: int
+    """
+    last_round = algod_client(environment_variables(), network).status()["last-round"]
+    print(f"The latest round on {network} is {last_round}")
+    return last_round
+
+
 def seal(network, session_id, snapshot_file):
     """Seal the session's snapshot with the hash of the published snapshot file.
 
@@ -222,6 +234,10 @@ def main(argv=None):
         command.add_argument("network")
         command.add_argument("session_id", type=int)
         command.set_defaults(function=function)
+
+    command = commands.add_parser("round")
+    command.add_argument("network")
+    command.set_defaults(function=current_round)
 
     arguments = vars(parser.parse_args(argv))
     arguments.pop("command")
