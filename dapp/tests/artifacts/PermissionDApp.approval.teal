@@ -1,0 +1,247 @@
+#pragma version 11
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 2 1 0 32
+    // contract.py:6
+    // class PermissionDApp(ARC4Contract):
+    txn NumAppArgs
+    bz main_bare_routing@12
+    txn OnCompletion
+    !
+    assert
+    txn ApplicationID
+    assert
+    pushbytess 0xf9c83219 0x18a423db 0x127182cd // method "write_box(byte[],string)void", method "delete_box(byte[])void", method "votes_of(address)uint64"
+    txna ApplicationArgs 0
+    match write_box delete_box votes_of
+
+main_after_if_else@17:
+    // contract.py:6
+    // class PermissionDApp(ARC4Contract):
+    err
+
+main_bare_routing@12:
+    // contract.py:6
+    // class PermissionDApp(ARC4Contract):
+    txn OnCompletion
+    switch main_create_application@13 main_after_if_else@17 main_after_if_else@17 main_after_if_else@17 main_update_application@14 main_delete_application@15
+    err
+
+main_delete_application@15:
+    // contract.py:33
+    // @arc4.baremethod(allow_actions=["DeleteApplication"])
+    txn ApplicationID
+    assert
+    // contract.py:39
+    // Txn.sender == Global.creator_address
+    txn Sender
+    global CreatorAddress
+    ==
+    // contract.py:38-40
+    // assert (
+    //     Txn.sender == Global.creator_address
+    // ), "Only creator can delete application"
+    assert // Only creator can delete application
+    // contract.py:33
+    // @arc4.baremethod(allow_actions=["DeleteApplication"])
+    intc_1 // 1
+    return
+
+main_update_application@14:
+    // contract.py:24
+    // @arc4.baremethod(allow_actions=["UpdateApplication"])
+    txn ApplicationID
+    assert
+    // contract.py:30
+    // Txn.sender == Global.creator_address
+    txn Sender
+    global CreatorAddress
+    ==
+    // contract.py:29-31
+    // assert (
+    //     Txn.sender == Global.creator_address
+    // ), "Only creator can update application"
+    assert // Only creator can update application
+    // contract.py:24
+    // @arc4.baremethod(allow_actions=["UpdateApplication"])
+    intc_1 // 1
+    return
+
+main_create_application@13:
+    // contract.py:15
+    // @arc4.baremethod(allow_actions=["NoOp"], create="require")
+    txn ApplicationID
+    !
+    return
+
+
+// dapp.contract.PermissionDApp.write_box[routing]() -> void:
+write_box:
+    // contract.py:42
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_2 // 0
+    extract_uint16 // on error: invalid array length header
+    dup
+    intc_0 // 2
+    +
+    dig 2
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_2 // 0
+    extract_uint16 // on error: invalid array length header
+    dup
+    intc_0 // 2
+    +
+    dig 2
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:51
+    // assert Txn.sender == Global.creator_address, "Only creator can write to boxes"
+    txn Sender
+    global CreatorAddress
+    ==
+    assert // Only creator can write to boxes
+    // contract.py:60
+    // actual_box_name = op.extract(box_name_bytes, 2, actual_box_name_length)
+    uncover 3
+    intc_0 // 2
+    dig 4
+    extract3
+    dup
+    cover 2
+    cover 4
+    // contract.py:64
+    // actual_value = op.extract(value_bytes, 2, actual_value_length)
+    uncover 2
+    intc_0 // 2
+    uncover 2
+    extract3
+    cover 2
+    // contract.py:66
+    // assert actual_box_name_length == 32, "Box name must be exactly 32 bytes"
+    swap
+    intc_3 // 32
+    ==
+    assert // Box name must be exactly 32 bytes
+    // contract.py:68-70
+    // # Simple approach: always delete the box first if it exists, then create it
+    // # This avoids the length comparison issue
+    // _length, exists = op.Box.length(actual_box_name)
+    box_len
+    bury 1
+    // contract.py:71
+    // if exists:
+    bz write_box_after_if_else@3
+    // contract.py:72
+    // op.Box.delete(actual_box_name)
+    dig 1
+    box_del
+    pop
+
+write_box_after_if_else@3:
+    // contract.py:74-75
+    // # Write to box (create new box)
+    // op.Box.put(actual_box_name, actual_value)
+    box_put
+    // contract.py:42
+    // @arc4.abimethod
+    intc_1 // 1
+    return
+
+
+// dapp.contract.PermissionDApp.delete_box[routing]() -> void:
+delete_box:
+    // contract.py:77
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_2 // 0
+    extract_uint16 // on error: invalid array length header
+    dup
+    intc_0 // 2
+    +
+    dig 2
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:85
+    // assert Txn.sender == Global.creator_address, "Only creator can delete boxes"
+    txn Sender
+    global CreatorAddress
+    ==
+    assert // Only creator can delete boxes
+    // contract.py:92
+    // actual_box_name = op.extract(box_name_bytes, 2, actual_box_name_length)
+    swap
+    intc_0 // 2
+    dig 2
+    extract3
+    // contract.py:94
+    // assert actual_box_name_length == 32, "Box name must be exactly 32 bytes"
+    swap
+    intc_3 // 32
+    ==
+    assert // Box name must be exactly 32 bytes
+    // contract.py:96-97
+    // # Delete the box
+    // op.Box.delete(actual_box_name)
+    box_del
+    pop
+    // contract.py:77
+    // @arc4.abimethod
+    intc_1 // 1
+    return
+
+
+// dapp.contract.PermissionDApp.votes_of[routing]() -> void:
+votes_of:
+    // contract.py:99
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // contract.py:110
+    // value, exists = op.Box.get(address.bytes)
+    box_get
+    // contract.py:111
+    // if not exists:
+    bnz votes_of_after_if_else@3
+    pop
+    // contract.py:112
+    // return arc4.UInt64(0)
+    intc_2 // 0
+    itob
+
+votes_of_after_inlined_dapp.contract.PermissionDApp.votes_of@4:
+    // contract.py:99
+    // @arc4.abimethod(readonly=True)
+    pushbytes 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+votes_of_after_if_else@3:
+    // contract.py:114-115
+    // # 12 base64 characters hold 9 bytes; `votes` is the first 8 of them
+    // raw = op.base64_decode(op.Base64.StdEncoding, op.extract(value, 0, 12))
+    extract 0 12
+    base64_decode StdEncoding
+    // contract.py:116
+    // return arc4.UInt64(op.extract_uint64(raw, 0))
+    extract 0 8
+    // contract.py:99
+    // @arc4.abimethod(readonly=True)
+    b votes_of_after_inlined_dapp.contract.PermissionDApp.votes_of@4
