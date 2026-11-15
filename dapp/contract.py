@@ -259,7 +259,9 @@ class VotingDApp(ARC4Contract):
             session.totals[previous] = arc4.UInt64(
                 session.totals[previous].as_uint64() - ballot.weight.as_uint64()
             )
-        session.totals[option] = arc4.UInt64(session.totals[option].as_uint64() + weight)
+        session.totals[option] = arc4.UInt64(
+            session.totals[option].as_uint64() + weight
+        )
         self.sessions[session_id] = session.copy()
 
         ballot.option = arc4.UInt8(option)

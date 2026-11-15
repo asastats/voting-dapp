@@ -204,6 +204,7 @@ def environment_variables():
         "creator_mainnet_mnemonic": os.getenv("CREATOR_MAINNET_MNEMONIC"),
         "creator_testnet_address": os.getenv("CREATOR_TESTNET_ADDRESS"),
         "creator_mainnet_address": os.getenv("CREATOR_MAINNET_ADDRESS"),
+        "user_testnet_mnemonic": os.getenv("USER_TESTNET_MNEMONIC"),
     }
 
 

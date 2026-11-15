@@ -11,6 +11,7 @@ from algosdk.abi.contract import Contract
 from algosdk.atomic_transaction_composer import (
     AccountTransactionSigner,
     AtomicTransactionComposer,
+    sign_transaction_with_signer,
 )
 from algosdk.encoding import decode_address
 from algosdk.error import AlgodHTTPError
@@ -74,7 +75,9 @@ def _account(algorand, algo=10):
 
 
 def _send(algod, txn, account):
-    tx_id = algod.send_transaction(txn.sign(account.private_key))
+    tx_id = algod.send_transaction(
+        sign_transaction_with_signer(txn, AccountTransactionSigner(account.private_key))
+    )
     return transaction.wait_for_confirmation(algod, tx_id, 4)
 
 
@@ -351,7 +354,8 @@ class TestIntegrationSession:
         algod, app_id = deployment.algod, deployment.app_id
         session_id, _, _ = deployment.session()
         amounts = {
-            deployment.algorand.account.random().address: index + 1 for index in range(9)
+            deployment.algorand.account.random().address: index + 1
+            for index in range(9)
         }
 
         set_snapshot(algod, app_id, deployment.parameters, session_id, amounts)

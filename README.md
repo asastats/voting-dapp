@@ -1,5 +1,8 @@
 # ASA Stats Voting dApp
 
+[![build-status](https://github.com/asastats/voting-dapp/actions/workflows/build.yml/badge.svg)](https://github.com/asastats/voting-dapp/actions/workflows/build.yml) [![docs](https://app.readthedocs.org/projects/voting-dapp/badge/?version=latest)](https://voting-dapp.readthedocs.io/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/asastats/voting-dapp/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/voting-dapp)
+
+
 The smart contract and the admin scripts for on-chain voting of the ASA Stats DAO.
 
 Status: in development. Nothing is deployed; the counting rule below is a working
@@ -51,7 +54,7 @@ file as published goes on-chain at the seal.
 
 ## Usage
 
-Python 3.12 or newer. All commands but the tests run from the repository's root.
+Python 3.12 or newer. All commands run from the repository's root.
 
     python3 -m venv venv
     source venv/bin/activate
@@ -62,11 +65,18 @@ Compile the contract after any change to `dapp/contract.py`:
 
     algokit compile py dapp/contract.py --out-dir artifacts
 
-Run the tests from the `dapp` directory; the integration tests need localnet:
+Run the tests, from the `dapp` directory or from the root; the integration tests
+need localnet:
 
     algokit localnet start
     cd dapp
     python -m pytest
+
+The test of a whole session on testnet is left out of that run, because every
+run leaves a session and a ballot box there. It needs `USER_TESTNET_MNEMONIC`,
+a funded account that votes, and takes about two minutes:
+
+    python -m pytest -m testnet --no-cov
 
 Deploy to testnet and fund the application account, which pays for the boxes
 (set the returned ID in `dapp/configuration.py`):

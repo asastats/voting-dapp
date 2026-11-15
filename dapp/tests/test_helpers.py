@@ -184,6 +184,7 @@ class TestHelpersHelpers:
             "creator_mainnet_mnemonic": None,
             "creator_testnet_address": None,
             "creator_mainnet_address": None,
+            "user_testnet_mnemonic": None,
         }
 
     def test_helpers_permission_dapp_id(self):

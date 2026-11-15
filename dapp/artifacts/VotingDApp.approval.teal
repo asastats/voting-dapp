@@ -676,7 +676,7 @@ vote:
     // dapp/contract.py:245
     // seat = Txn.sender
     txn Sender
-    // dapp/contract.py:332-333
+    // dapp/contract.py:334-335
     // # the only place that knows where a seat's eligible amount comes from
     // key = BallotKey(arc4.UInt64(session_id), arc4.Address(seat))
     swap
@@ -684,7 +684,7 @@ vote:
     concat
     dup
     cover 3
-    // dapp/contract.py:334
+    // dapp/contract.py:336
     // assert key in self.ballots, "Seat is not in the snapshot"
     bytec 4 // 0x76
     swap
@@ -695,7 +695,7 @@ vote:
     box_len
     bury 1
     assert // Seat is not in the snapshot
-    // dapp/contract.py:335
+    // dapp/contract.py:337
     // return self.ballots[key].eligible.as_uint64()
     box_get
     pop
@@ -704,7 +704,7 @@ vote:
     dup
     cover 2
     cover 4
-    // dapp/contract.py:339-345
+    // dapp/contract.py:341-347
     // # inner calls don't run under algopy-testing; the localnet tests run this
     // votes, _txn = arc4.abi_call[arc4.UInt64](
     //     "votes_of(address)uint64",
@@ -713,14 +713,14 @@ vote:
     //     fee=0,
     // )
     itxn_begin
-    // dapp/contract.py:343
+    // dapp/contract.py:345
     // app_id=self.permission_app_id,
     intc_1 // 0
     bytec_2 // "permission_app_id"
     app_global_get_ex
     assert // check self.permission_app_id exists
     itxn_field ApplicationID
-    // dapp/contract.py:339-345
+    // dapp/contract.py:341-347
     // # inner calls don't run under algopy-testing; the localnet tests run this
     // votes, _txn = arc4.abi_call[arc4.UInt64](
     //     "votes_of(address)uint64",
@@ -733,11 +733,11 @@ vote:
     itxn_field ApplicationArgs
     pushint 6 // appl
     itxn_field TypeEnum
-    // dapp/contract.py:344
+    // dapp/contract.py:346
     // fee=0,
     intc_1 // 0
     itxn_field Fee
-    // dapp/contract.py:339-345
+    // dapp/contract.py:341-347
     // # inner calls don't run under algopy-testing; the localnet tests run this
     // votes, _txn = arc4.abi_call[arc4.UInt64](
     //     "votes_of(address)uint64",
@@ -760,7 +760,7 @@ vote:
     intc_0 // 8
     ==
     assert // invalid number of bytes for arc4.uint64
-    // dapp/contract.py:346
+    // dapp/contract.py:348
     // return votes.as_uint64()
     btoi
     // dapp/contract.py:248
@@ -812,8 +812,8 @@ vote_after_if_else@3:
     replace2 115
 
 vote_after_if_else@6:
-    // dapp/contract.py:262
-    // session.totals[option] = arc4.UInt64(session.totals[option].as_uint64() + weight)
+    // dapp/contract.py:263
+    // session.totals[option].as_uint64() + weight
     dup
     extract 123 64
     dig 8
@@ -827,10 +827,14 @@ vote_after_if_else@6:
     dup
     cover 6
     +
+    // dapp/contract.py:262-264
+    // session.totals[option] = arc4.UInt64(
+    //     session.totals[option].as_uint64() + weight
+    // )
     itob
     replace3 // on error: index access is out of bounds
     replace2 123
-    // dapp/contract.py:263
+    // dapp/contract.py:265
     // self.sessions[session_id] = session.copy()
     dig 10
     itob
@@ -839,7 +843,7 @@ vote_after_if_else@6:
     concat
     swap
     box_put
-    // dapp/contract.py:265
+    // dapp/contract.py:267
     // ballot.option = arc4.UInt8(option)
     itob
     dup
@@ -851,23 +855,23 @@ vote_after_if_else@6:
     uncover 2
     dig 1
     replace2 8
-    // dapp/contract.py:266
+    // dapp/contract.py:268
     // ballot.max_votes = arc4.UInt64(max_votes)
     dig 5
     replace2 9
-    // dapp/contract.py:267
+    // dapp/contract.py:269
     // ballot.weight = arc4.UInt64(weight)
     uncover 2
     itob
     swap
     dig 1
     replace2 17
-    // dapp/contract.py:268
+    // dapp/contract.py:270
     // self.ballots[key] = ballot.copy()
     uncover 3
     swap
     box_put
-    // dapp/contract.py:271-276
+    // dapp/contract.py:273-278
     // Voted(
     //     arc4.UInt64(session_id),
     //     arc4.Address(seat),
@@ -879,7 +883,7 @@ vote_after_if_else@6:
     concat
     swap
     concat
-    // dapp/contract.py:270-277
+    // dapp/contract.py:272-279
     // arc4.emit(
     //     Voted(
     //         arc4.UInt64(session_id),
@@ -927,7 +931,7 @@ vote_else_body@5:
 finalize:
     pushbytes ""
     dup
-    // dapp/contract.py:279
+    // dapp/contract.py:281
     // @arc4.abimethod
     txna ApplicationArgs 1
     dupn 2
@@ -937,17 +941,17 @@ finalize:
     assert // invalid number of bytes for arc4.uint64
     btoi
     dup
-    // dapp/contract.py:287
+    // dapp/contract.py:289
     // session = self._session(session_id)
     callsub _session
     dupn 2
-    // dapp/contract.py:288
+    // dapp/contract.py:290
     // assert session.status == STATUS_SEALED, "Session is not open for voting"
     extract 113 1
     bytec 5 // 0x01
     b==
     assert // Session is not open for voting
-    // dapp/contract.py:289
+    // dapp/contract.py:291
     // assert Global.round > session.end_round, "Voting has not ended"
     dup
     extract 48 8
@@ -955,32 +959,32 @@ finalize:
     itob
     b<
     assert // Voting has not ended
-    // dapp/contract.py:291
+    // dapp/contract.py:293
     // turnout = UInt64(0)
     intc_1 // 0
     cover 2
-    // dapp/contract.py:292
+    // dapp/contract.py:294
     // winner = UInt64(NOT_VOTED)
     intc 4 // 255
     cover 5
-    // dapp/contract.py:293
+    // dapp/contract.py:295
     // winner_total = UInt64(0)
     intc_1 // 0
     cover 5
-    // dapp/contract.py:294
+    // dapp/contract.py:296
     // for index in urange(session.options_count.as_uint64()):
     pushint 56
     getbyte
     intc_1 // 0
 
 finalize_for_header@2:
-    // dapp/contract.py:294
+    // dapp/contract.py:296
     // for index in urange(session.options_count.as_uint64()):
     dup
     dig 2
     <
     bz finalize_after_for@7
-    // dapp/contract.py:295
+    // dapp/contract.py:297
     // total = session.totals[index].as_uint64()
     dig 2
     extract 123 64
@@ -990,13 +994,13 @@ finalize_for_header@2:
     extract_uint64
     dup
     bury 10
-    // dapp/contract.py:296
+    // dapp/contract.py:298
     // turnout += total
     uncover 4
     dig 1
     +
     cover 4
-    // dapp/contract.py:297
+    // dapp/contract.py:299
     // if total > winner_total:
     dig 7
     >
@@ -1007,7 +1011,7 @@ finalize_for_header@2:
     bury 7
 
 finalize_after_if_else@5:
-    // dapp/contract.py:294
+    // dapp/contract.py:296
     // for index in urange(session.options_count.as_uint64()):
     intc_2 // 1
     +
@@ -1015,52 +1019,52 @@ finalize_after_if_else@5:
 
 finalize_after_for@7:
     popn 2
-    // dapp/contract.py:301
+    // dapp/contract.py:303
     // status = UInt64(STATUS_FAILED)
     pushint 3
     bury 8
-    // dapp/contract.py:303
+    // dapp/contract.py:305
     // turnout >= session.quorum.as_uint64()
     dup
     pushint 57
     extract_uint64
     dig 2
     <=
-    // dapp/contract.py:303-305
+    // dapp/contract.py:305-307
     // turnout >= session.quorum.as_uint64()
     // and winner_total * session.threshold_den.as_uint64()
     // > turnout * session.threshold_num.as_uint64()
     bz finalize_else_body@10
-    // dapp/contract.py:304
+    // dapp/contract.py:306
     // and winner_total * session.threshold_den.as_uint64()
     dupn 2
     pushint 73
     extract_uint64
     dig 6
     *
-    // dapp/contract.py:305
+    // dapp/contract.py:307
     // > turnout * session.threshold_num.as_uint64()
     swap
     pushint 65
     extract_uint64
     dig 3
     *
-    // dapp/contract.py:304-305
+    // dapp/contract.py:306-307
     // and winner_total * session.threshold_den.as_uint64()
     // > turnout * session.threshold_num.as_uint64()
     >
-    // dapp/contract.py:303-305
+    // dapp/contract.py:305-307
     // turnout >= session.quorum.as_uint64()
     // and winner_total * session.threshold_den.as_uint64()
     // > turnout * session.threshold_num.as_uint64()
     bz finalize_else_body@10
-    // dapp/contract.py:307
+    // dapp/contract.py:309
     // status = UInt64(STATUS_PASSED)
     pushint 2
     bury 8
 
 finalize_after_if_else@11:
-    // dapp/contract.py:311
+    // dapp/contract.py:313
     // session.status = arc4.UInt8(status)
     dig 7
     itob
@@ -1073,7 +1077,7 @@ finalize_after_if_else@11:
     swap
     dig 1
     replace2 113
-    // dapp/contract.py:312
+    // dapp/contract.py:314
     // session.winner = arc4.UInt8(winner)
     dig 6
     itob
@@ -1086,7 +1090,7 @@ finalize_after_if_else@11:
     swap
     dig 1
     replace2 114
-    // dapp/contract.py:313
+    // dapp/contract.py:315
     // self.sessions[session_id] = session.copy()
     uncover 4
     itob
@@ -1095,11 +1099,11 @@ finalize_after_if_else@11:
     concat
     swap
     box_put
-    // dapp/contract.py:320
+    // dapp/contract.py:322
     // arc4.UInt64(turnout),
     uncover 2
     itob
-    // dapp/contract.py:316-321
+    // dapp/contract.py:318-323
     // Finalized(
     //     arc4.UInt64(session_id),
     //     arc4.UInt8(status),
@@ -1113,7 +1117,7 @@ finalize_after_if_else@11:
     concat
     swap
     concat
-    // dapp/contract.py:315-322
+    // dapp/contract.py:317-324
     // arc4.emit(
     //     Finalized(
     //         arc4.UInt64(session_id),
@@ -1126,13 +1130,13 @@ finalize_after_if_else@11:
     swap
     concat
     log
-    // dapp/contract.py:279
+    // dapp/contract.py:281
     // @arc4.abimethod
     intc_2 // 1
     return
 
 finalize_else_body@10:
-    // dapp/contract.py:309
+    // dapp/contract.py:311
     // winner = UInt64(NOT_VOTED)
     intc 4 // 255
     bury 6
@@ -1141,12 +1145,12 @@ finalize_else_body@10:
 
 // dapp.contract.VotingDApp._session(session_id: uint64) -> bytes:
 _session:
-    // dapp/contract.py:324-326
+    // dapp/contract.py:326-328
     // # # SUBROUTINES
     // @subroutine
     // def _session(self, session_id: UInt64) -> Session:
     proto 1 1
-    // dapp/contract.py:327
+    // dapp/contract.py:329
     // assert session_id in self.sessions, "Session does not exist"
     frame_dig -1
     itob
@@ -1157,7 +1161,7 @@ _session:
     box_len
     bury 1
     assert // Session does not exist
-    // dapp/contract.py:328
+    // dapp/contract.py:330
     // return self.sessions[session_id]
     box_get
     pop

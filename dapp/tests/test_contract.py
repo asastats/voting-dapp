@@ -83,7 +83,9 @@ def _ballot(context, contract, seat, session_id=1):
 
 
 def _as(context, account, **overrides):
-    return context.txn.create_group(active_txn_overrides={"sender": account, **overrides})
+    return context.txn.create_group(
+        active_txn_overrides={"sender": account, **overrides}
+    )
 
 
 @pytest.fixture()
@@ -206,7 +208,9 @@ class TestVotingDAppSnapshot:
         assert len(ballot.bytes) == 25
         assert _ballot(context, contract, seat2).eligible == 22
 
-    def test_voting_dapp_set_snapshot_corrects_and_removes_seats(self, context, contract):
+    def test_voting_dapp_set_snapshot_corrects_and_removes_seats(
+        self, context, contract
+    ):
         seat1, seat2, seat3 = (context.any.account() for _ in range(3))
         session_id = _create_session(contract)
         _set_snapshot(contract, session_id, {seat1: 11, seat2: 22})
@@ -472,7 +476,9 @@ class TestVotingDAppFinalize:
         assert session.status == STATUS_FAILED
         assert session.winner == NOT_VOTED
 
-    def test_voting_dapp_finalize_fails_below_two_thirds(self, context, contract, mocker):
+    def test_voting_dapp_finalize_fails_below_two_thirds(
+        self, context, contract, mocker
+    ):
         session_id = self._voted_session(
             context,
             contract,

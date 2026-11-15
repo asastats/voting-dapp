@@ -3,7 +3,7 @@ puyapy==5.9.0
 algorand-python>=3.5.1,<3.6.0
 algokit-utils>=4.2.3
 python-dotenv>=1.2.2
-py-algorand-sdk>=2.11.1
+py-algorand-sdk>=2.12.0
 # development
 pytest>=9.0.2
 pytest-cov>=7.0.0

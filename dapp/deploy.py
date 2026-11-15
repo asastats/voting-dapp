@@ -2,6 +2,7 @@
 
 import json
 
+from algosdk.atomic_transaction_composer import sign_transaction_with_signer
 from algosdk.logic import get_application_address
 from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
@@ -53,7 +54,9 @@ def deploy_app(network="testnet"):
     app_id, genesis_hash = create_app(
         client,
         admin_parameters(env, network=network),
-        compile_program(client, (ARTIFACTS / f"{DAPP_NAME}.approval.teal").read_bytes()),
+        compile_program(
+            client, (ARTIFACTS / f"{DAPP_NAME}.approval.teal").read_bytes()
+        ),
         compile_program(client, (ARTIFACTS / f"{DAPP_NAME}.clear.teal").read_bytes()),
         contract_json,
         permission_dapp_id(network=network),
@@ -92,7 +95,7 @@ def fund_app(app_id, network="testnet", amount=5_000_000):
         receiver=get_application_address(app_id),
         amt=amount,
     )
-    signed_txn = txn.sign(parameters["signer"].private_key)
+    signed_txn = sign_transaction_with_signer(txn, parameters["signer"])
     tx_id = client.send_transaction(signed_txn)
     print(f"Funded app {app_id} with {amount / 1_000_000} Algo in transaction {tx_id}")
     return tx_id

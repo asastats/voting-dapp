@@ -132,3 +132,34 @@ different TEAL for the same source (seen the same day on the Permission dApp,
 it is the range puyapy 5.9.0 supports. Left open, a fresh install took 4.0.0
 and the compiler warned that typing errors could follow. Raise the cap and the
 puyapy pin together, then recompile and reread the TEAL diff.
+
+---
+
+## dapp/tests/test_integration_testnet.py
+
+2026-11-15. Deselected by default through the `testnet` marker, unlike the
+Permission dApp's Testnet tests, which run with the suite and in CI. Every run
+creates a session box and a ballot box that nothing can delete (there is no
+`delete_ballot`), so each run locks 109,800 µALGO of the application account's
+balance for good; in CI, with two Python versions, that would be about
+0.22 ALGO per push out of the 5 ALGO the app was funded with.
+
+The test writes the seat's Permission dApp box itself and deletes it at the
+end, so the admin of the Voting dApp on Testnet has to be the creator of the
+Permission dApp there too. It was written on a computer without the Testnet
+keys and had not been run when committed.
+
+Correction, 2026-11-15, later: the user ran it on Testnet against apps
+775947805 and 750094865 and it passed.
+
+---
+
+## pytest.ini and dapp/pytest.ini
+
+2026-11-15. Two files with the same settings, one per place the suite gets
+run from. With the configuration only in `dapp/`, a run from the root found
+none: no coverage, the `testnet` marker unknown and, worse, the Testnet test
+not deselected, so it ran and left a session on Testnet. A run from `dapp/`
+finds `dapp/pytest.ini` first, so the root file never applies there. One file
+cannot serve both, because coverage looks for `.coveragerc` in the working
+directory only and `--cov-config` is relative to it.

@@ -50,3 +50,11 @@ jobs:
         run: |
           cd dapp
           python -m pytest -v --cov-branch --cov-report=xml
+
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: dapp
+          flags: main-project
+          name: main-coverage

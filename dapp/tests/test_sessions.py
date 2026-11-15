@@ -84,7 +84,9 @@ class TestSessionsCommands:
     def test_sessions_seal_seals_with_the_file_hash(
         self, mocker, connection, snapshot_file
     ):
-        mocker.patch("dapp.sessions.session_values", return_value={"snapshot_round": 55})
+        mocker.patch(
+            "dapp.sessions.session_values", return_value={"snapshot_round": 55}
+        )
         mocker.patch("dapp.sessions.session_ballots", return_value=_ballots(A=30, B=5))
         mocked_seal = mocker.patch("dapp.sessions.seal_snapshot")
 
@@ -109,7 +111,9 @@ class TestSessionsCommands:
     def test_sessions_seal_refuses_boxes_differing_from_file(
         self, mocker, connection, snapshot_file
     ):
-        mocker.patch("dapp.sessions.session_values", return_value={"snapshot_round": 55})
+        mocker.patch(
+            "dapp.sessions.session_values", return_value={"snapshot_round": 55}
+        )
         mocker.patch("dapp.sessions.session_ballots", return_value=_ballots(A=30))
         mocked_seal = mocker.patch("dapp.sessions.seal_snapshot")
 

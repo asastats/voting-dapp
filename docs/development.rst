@@ -91,7 +91,8 @@ Python
 ^^^^^^
 
 The integration tests deploy the Voting dApp and the Permission dApp to LocalNet,
-so it has to be started first. The tests are run from the `dapp` directory:
+so it has to be started first. The tests are run from the `dapp` directory or from
+the repository's root:
 
 .. code-block:: bash
 
@@ -99,6 +100,14 @@ so it has to be started first. The tests are run from the `dapp` directory:
   source ~/dev/venvs/dao/bin/activate
   algokit localnet start
   python -m pytest -v  # or just `pytest -v`
+
+The test of a whole voting session on Testnet isn't a part of that run, as every run
+leaves a session and a ballot box on Testnet. It needs the `USER_TESTNET_MNEMONIC`
+variable set to a funded account, the governor seat that votes:
+
+.. code-block:: bash
+
+  python -m pytest -m testnet --no-cov
 
 The Permission dApp's compiled program in `dapp/tests/artifacts` is a copy from the
 `permission-dapp` repository. Refresh it whenever that smart contract is recompiled.

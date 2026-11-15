@@ -51,14 +51,13 @@ class TestDeploy:
         client.suggested_params.return_value = mocker.MagicMock(
             fee=1000, first=1, last=2, gh="gh", gen="gen", flat_fee=True, min_fee=1000
         )
+        signer = AccountTransactionSigner(private_key)
         mocker.patch(
             "dapp.deploy.admin_parameters",
-            return_value={
-                "sender": address,
-                "signer": AccountTransactionSigner(private_key),
-            },
+            return_value={"sender": address, "signer": signer},
         )
         mocked_txn = mocker.patch("dapp.deploy.PaymentTxn")
+        mocked_sign = mocker.patch("dapp.deploy.sign_transaction_with_signer")
 
         returned = deploy.fund_app(505, amount=7)
 
@@ -68,8 +67,6 @@ class TestDeploy:
             receiver=get_application_address(505),
             amt=7,
         )
-        mocked_txn.return_value.sign.assert_called_once_with(private_key)
-        client.send_transaction.assert_called_once_with(
-            mocked_txn.return_value.sign.return_value
-        )
+        mocked_sign.assert_called_once_with(mocked_txn.return_value, signer)
+        client.send_transaction.assert_called_once_with(mocked_sign.return_value)
         assert returned == client.send_transaction.return_value
