@@ -47,4 +47,6 @@ jobs:
           diff dapp/check/VotingDApp.approval.teal dapp/artifacts/VotingDApp.approval.teal
 
       - name: Run Pytest
-        run: python -m pytest -v --cov-branch --cov-report=xml
+        run: |
+          cd dapp
+          python -m pytest -v --cov-branch --cov-report=xml

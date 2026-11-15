@@ -91,11 +91,11 @@ Python
 ^^^^^^
 
 The integration tests deploy the Voting dApp and the Permission dApp to LocalNet,
-so it has to be started first:
+so it has to be started first. The tests are run from the `dapp` directory:
 
 .. code-block:: bash
 
-  cd ~/dev/voting-dapp
+  cd ~/dev/voting-dapp/dapp
   source ~/dev/venvs/dao/bin/activate
   algokit localnet start
   python -m pytest -v  # or just `pytest -v`

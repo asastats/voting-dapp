@@ -19,11 +19,21 @@ out to be wrong gets a correction beneath it rather than an edit.
 
 2026-11-15. The modules import each other relatively (`from .helpers import`)
 and everything runs from the repository's root (`python -m dapp.sessions`,
-`python -m pytest`). The Permission dApp does it the other way, with bare names
+`python -m pytest`).
+
+Correction, 2026-11-15, later: the tests run from `dapp/`, as the Permission
+dApp's do. `pytest.ini` and `.coveragerc` sat in the root, and a run from
+`dapp/` found the first but not the second (coverage looks only in the working
+directory), so the test modules were counted as source. Both files are in
+`dapp/` now and `pythonpath = ..` keeps `dapp` importable as a package. The
+scripts and the compile still run from the root. The Permission dApp does it the other way, with bare names
 and `dapp/` as the import root, and the website puts that folder on `sys.path`.
 Two submodules both exposing bare `helpers`, `network` and `contract` would
 shadow each other there; with relative imports the website can import
 `daovoting.dapp.*` and nothing has to be added to `sys.path`.
+
+Correction, 2026-11-15, later: the submodule folder is `website/votingdapp`,
+not `website/daovoting`, so the import is `votingdapp.dapp.*`.
 
 ---
 

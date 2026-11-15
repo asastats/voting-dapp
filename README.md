@@ -51,7 +51,7 @@ file as published goes on-chain at the seal.
 
 ## Usage
 
-Python 3.12 or newer. All commands run from the repository's root.
+Python 3.12 or newer. All commands but the tests run from the repository's root.
 
     python3 -m venv venv
     source venv/bin/activate
@@ -62,9 +62,10 @@ Compile the contract after any change to `dapp/contract.py`:
 
     algokit compile py dapp/contract.py --out-dir artifacts
 
-Run the tests; the integration tests need localnet:
+Run the tests from the `dapp` directory; the integration tests need localnet:
 
     algokit localnet start
+    cd dapp
     python -m pytest
 
 Deploy to testnet and fund the application account, which pays for the boxes
