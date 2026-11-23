@@ -163,3 +163,37 @@ not deselected, so it ran and left a session on Testnet. A run from `dapp/`
 finds `dapp/pytest.ini` first, so the root file never applies there. One file
 cannot serve both, because coverage looks for `.coveragerc` in the working
 directory only and `--cov-config` is relative to it.
+
+
+---
+
+## dapp/tally.py
+
+2026-11-23. The independent tally of the plan's §5 item 2 (workspace
+`dao-voting/IMPLEMENTATION-PLAN.md`): the audit a governor can run without the admin's
+keys or the ASA Stats engine, hence here and not in the engine.
+
+What it can and cannot check. Everything a session's result rests on is public:
+the session box, the ballot boxes, the snapshot file whose sha256 is sealed, and
+the `Voted` events. `votes_of` at the moment of a vote is not: algod reads only the
+current box, and the Permission dApp's box history would have to be replayed from
+its `write_box` calls. The ballot box keeps the value the contract read
+(`max_votes`), so the tally checks `weight == min(max_votes × 10⁶, eligible)` and
+reports a seat whose `votes_of` differs today as a note, not a problem: votes are
+meant to change between sessions.
+
+The totals are summed twice, from the boxes and from each seat's last `Voted` event,
+and both are compared with the session's own totals; the result is recomputed with
+the contract's `finalize` rule (`contract_result`, strict `>` so a tie goes to the
+lower option). The events are searched only between the session's start and end
+rounds: the contract rejects a vote outside them, so a vote found outside would be
+reported, but none can be found by that search; the check stays for events fed in
+by other means (tests, another indexer query).
+
+`permission_votes` reads the box itself instead of simulating `votes_of`: no
+account or fee is needed, and the decoding (12 base64 characters, first 8 bytes) is
+the contract's own, tested against the deployed Permission dApp on localnet.
+
+Localnet: the integration test needs the localnet indexer. On 2026-11-23 it stayed
+at round 0 because Conduit rejected the newer algod's blocks ("unknown protocol …
+upgrade"); `algokit localnet reset --update` fixed it.

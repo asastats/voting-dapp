@@ -100,4 +100,10 @@ again after a correction. `seal` refuses while any box differs from the file.
 `create` takes `--options-count` (2–8, default 3), `--quorum` (micro-votes,
 default 0) and `--threshold NUM DEN` (default `1 2`; at least a half).
 
+Anyone can tally a session independently from public data (algod, the indexer and
+the published files); it prints a `PROBLEM` line for anything that differs from the
+chain and exits with status 1:
+
+    python -m dapp.tally testnet 1 snapshot.json --proposal proposal.md
+
 Why things are the way they are: `docs/logbook.md`.

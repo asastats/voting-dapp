@@ -25,7 +25,8 @@ Structure
     ├── deploy.py
     ├── helpers.py
     ├── network.py
-    └── sessions.py
+    ├── sessions.py
+    └── tally.py
 
 
 Smart contract

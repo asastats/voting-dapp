@@ -232,6 +232,14 @@ def environment_variables():
         "creator_testnet_address": os.getenv("CREATOR_TESTNET_ADDRESS"),
         "creator_mainnet_address": os.getenv("CREATOR_MAINNET_ADDRESS"),
         "user_testnet_mnemonic": os.getenv("USER_TESTNET_MNEMONIC"),
+        "indexer_token_testnet": os.getenv("INDEXER_TOKEN_TESTNET", ""),
+        "indexer_token_mainnet": os.getenv("INDEXER_TOKEN_MAINNET", ""),
+        "indexer_address_testnet": os.getenv(
+            "INDEXER_ADDRESS_TESTNET", "https://testnet-idx.algonode.cloud"
+        ),
+        "indexer_address_mainnet": os.getenv(
+            "INDEXER_ADDRESS_MAINNET", "https://mainnet-idx.algonode.cloud"
+        ),
     }
 
 

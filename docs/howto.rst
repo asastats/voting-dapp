@@ -41,6 +41,26 @@ Show the session and its ballots, and record the result after the end round:
     python -m dapp.sessions close testnet 1
 
 
+Tally a session independently
+-----------------------------
+
+Anyone can recompute a session from public data, without the admin's keys. The
+command reads the session and ballot boxes and the Permission dApp boxes from algod,
+and the `Voted` events from the indexer (`INDEXER_ADDRESS_TESTNET` /
+`INDEXER_ADDRESS_MAINNET`, `testnet-idx.algonode.cloud` / `mainnet-idx.algonode.cloud` by default):
+
+.. code-block:: bash
+
+    python -m dapp.tally testnet 1 snapshot.json --proposal proposal.md
+
+It checks the files against the session's hashes and snapshot round, every ballot box
+against the snapshot file, every vote against the counting rule and against the seat's
+last `Voted` event, and the totals, voter count and result against the session. It
+prints a `PROBLEM` line for anything that differs and exits with status 1, or ends with
+`Everything agrees`. A seat whose `votes_of` changed after its vote is a `NOTE`: the
+contract reads `votes_of` when the seat votes.
+
+
 Add content
 -----------
 

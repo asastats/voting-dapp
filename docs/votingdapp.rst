@@ -52,6 +52,15 @@
   :show-inheritance:
 
 
+:mod:`dapp.tally` -- Independent tally of a Voting dApp session
+**************************************************************
+
+.. automodule:: dapp.tally
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
 :mod:`dapp.tests` -- Voting dApp tests package
 **********************************************
 

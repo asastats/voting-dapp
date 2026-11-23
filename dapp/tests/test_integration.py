@@ -1,7 +1,9 @@
 """Module with localnet integration tests for the Voting dApp smart contract."""
 
 import base64
+import json
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -24,6 +26,7 @@ from dapp.helpers import (
     compile_program,
     load_contract,
     read_json,
+    sha256_of_file,
 )
 from dapp.network import (
     app_global_state,
@@ -36,6 +39,7 @@ from dapp.network import (
     set_snapshot,
     vote,
 )
+from dapp.tally import tally
 
 MICRO = 1_000_000
 PERMISSION_ARTIFACTS = Path(__file__).resolve().parent / "artifacts"
@@ -203,6 +207,34 @@ class Deployment:
 @pytest.fixture()
 def deployment(algorand):
     return Deployment(algorand)
+
+
+def _set_votes(deployment, account, votes):
+    """Rewrite the Permission dApp box of `account` with `votes`."""
+    box_name = decode_address(account.address)
+    atc = AtomicTransactionComposer()
+    atc.add_method_call(
+        app_id=deployment.permission_id,
+        method=deployment.permission_contract.get_method_by_name("write_box"),
+        sender=deployment.admin.address,
+        sp=deployment.algod.suggested_params(),
+        signer=deployment.parameters["signer"],
+        method_args=[
+            box_name,
+            base64.b64encode(votes.to_bytes(8, "big") + bytes(40)).decode(),
+        ],
+        boxes=[(deployment.permission_id, box_name)],
+    )
+    atc.execute(deployment.algod, 4)
+
+
+def _wait_for_indexer(indexer, target_round, timeout=60):
+    """Wait until the indexer has caught up with `target_round`."""
+    deadline = time.time() + timeout
+    while indexer.health().get("round", 0) < target_round:
+        if time.time() > deadline:
+            raise TimeoutError(f"Indexer didn't reach round {target_round}")
+        time.sleep(1)
 
 
 class TestIntegrationSession:
@@ -412,3 +444,83 @@ class TestIntegrationAdmin:
         _send(algod, delete(deployment.admin), deployment.admin)
         with pytest.raises(AlgodHTTPError, match="application does not exist"):
             algod.application_info(app_id)
+
+
+class TestIntegrationTally:
+    """Testing class for the independent tally of a finished session on localnet."""
+
+    def test_integration_tally_agrees_with_a_finished_session(
+        self, deployment, tmp_path, capsys
+    ):
+        algod, app_id = deployment.algod, deployment.app_id
+        indexer = deployment.algorand.client.indexer
+        first, second, third = (deployment.seat(votes=votes) for votes in (10, 3, 5))
+        session_id, start_round, end_round = deployment.session(length=12)
+
+        snapshot_file = tmp_path / "snapshot.json"
+        snapshot_file.write_text(
+            json.dumps(
+                {
+                    "snapshot_round": session_values(algod, app_id, session_id)[
+                        "snapshot_round"
+                    ],
+                    "asset_id": 393537671,
+                    "seats": {
+                        first.address: {"total": 4 * MICRO, "venues": {}},
+                        second.address: {"total": 9 * MICRO, "venues": {}},
+                        third.address: {"total": 2 * MICRO, "venues": {}},
+                    },
+                }
+            )
+        )
+        proposal = tmp_path / "proposal.md"
+        proposal.write_bytes(b"proposal")
+        set_snapshot(
+            algod,
+            app_id,
+            deployment.parameters,
+            session_id,
+            {
+                first.address: 4 * MICRO,
+                second.address: 9 * MICRO,
+                third.address: 2 * MICRO,
+            },
+        )
+        seal_snapshot(
+            algod,
+            app_id,
+            deployment.parameters,
+            session_id,
+            sha256_of_file(snapshot_file),
+        )
+
+        _advance_to(algod, deployment.admin, start_round)
+        deployment.vote(first, session_id, 1)
+        deployment.vote(second, session_id, 1)
+        deployment.vote(first, session_id, 0)  # changed: the weight moves to 0
+        _set_votes(deployment, second, 7)  # after its vote: noted, not a problem
+        _advance_to(algod, deployment.admin, end_round + 1)
+        finalize(algod, app_id, _parameters(first), session_id)
+        _wait_for_indexer(indexer, algod.status()["last-round"])
+
+        clients = (algod, indexer, app_id, deployment.permission_id)
+        report = tally("localnet", session_id, snapshot_file, clients=clients)
+        assert report["problems"] == []
+        assert report["totals"] == [4 * MICRO, 3 * MICRO, 0]
+        assert report["voters"] == 2
+        assert (report["status"], report["winner"]) == (2, 0)
+        assert report["notes"] == [
+            f"{second.address}: votes_of was 3 at its vote, 7 now"
+        ]
+        assert capsys.readouterr().out.endswith("Everything agrees\n")
+
+        # a file that isn't the sealed one, and a proposal that isn't the session's
+        snapshot_file.write_text(
+            snapshot_file.read_text().replace("9000000", "9000001")
+        )
+        report = tally("localnet", session_id, snapshot_file, str(proposal), clients)
+        assert report["problems"] == [
+            "The snapshot file's sha256 differs from the sealed hash",
+            "The proposal file's sha256 differs from the session's",
+            f"{second.address}: box eligible {9 * MICRO}, file {9 * MICRO + 1}",
+        ]

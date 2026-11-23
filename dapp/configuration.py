@@ -14,6 +14,9 @@ SNAPSHOT_SEATS_PER_CALL = 7
 
 NOT_VOTED = 255
 
+# micro-units per vote; mirrors `contract.MICRO`
+MICRO = 1_000_000
+
 STATUS_NAMES = {0: "snapshot open", 1: "sealed", 2: "passed", 3: "failed"}
 
 # offset and size of every Session field; mirrors `contract.Session`

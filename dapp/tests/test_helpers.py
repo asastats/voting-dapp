@@ -206,6 +206,10 @@ class TestHelpersHelpers:
             "creator_testnet_address": None,
             "creator_mainnet_address": None,
             "user_testnet_mnemonic": None,
+            "indexer_token_testnet": "",
+            "indexer_token_mainnet": "",
+            "indexer_address_testnet": "https://testnet-idx.algonode.cloud",
+            "indexer_address_mainnet": "https://mainnet-idx.algonode.cloud",
         }
 
     def test_helpers_permission_dapp_id(self):

@@ -45,6 +45,24 @@ class TestNetworkReading:
         assert kwargs["foreign_apps"] == [9]
         assert kwargs["other_boxes"] == [(9, network.decode_address(ADDRESS))]
 
+    def test_network_permission_votes_decodes_the_box_as_votes_of(self, mocker):
+        client = mocker.MagicMock()
+        value = base64.b64encode(
+            (12).to_bytes(8, "big") + bytes(40)
+        )  # the Permission box holds base64 text
+        client.application_box_by_name.return_value = {
+            "value": base64.b64encode(value).decode()
+        }
+        assert network.permission_votes(client, 9, ADDRESS) == 12
+        client.application_box_by_name.assert_called_once_with(
+            9, network.decode_address(ADDRESS)
+        )
+
+    def test_network_permission_votes_is_zero_without_a_box(self, mocker):
+        client = mocker.MagicMock()
+        client.application_box_by_name.side_effect = AlgodHTTPError("box not found")
+        assert network.permission_votes(client, 9, ADDRESS) == 0
+
 
 class TestNetworkCall:
     """Testing class for :py:func:`dapp.network._call`."""

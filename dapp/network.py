@@ -342,3 +342,24 @@ def session_values(client, app_id, session_id):
     """
     value = _box_value(client, app_id, session_box_name(session_id))
     return decode_session(value) if value is not None else None
+
+
+def permission_votes(client, permission_id, address):
+    """Return the votes the Permission dApp's `votes_of` gives `address` today.
+
+    :param client: Algorand Node client instance
+    :type client: :class:`AlgodClient`
+    :param permission_id: Permission dApp identifier
+    :type permission_id: int
+    :param address: governor seat address
+    :type address: str
+    :var value: raw Permission box value, None when the address has no box
+    :type value: bytes
+    :return: int
+    """
+    value = _box_value(client, permission_id, decode_address(address))
+    if value is None:
+        return 0
+
+    # as `votes_of`: the first 12 base64 characters hold 9 bytes, `votes` is 8 of them
+    return int.from_bytes(base64.b64decode(value[:12])[:8], "big")
