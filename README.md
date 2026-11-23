@@ -1,6 +1,6 @@
 # ASA Stats Voting dApp
 
-[![build-status](https://github.com/asastats/voting-dapp/actions/workflows/build.yml/badge.svg)](https://github.com/asastats/voting-dapp/actions/workflows/build.yml) [![docs](https://app.readthedocs.org/projects/voting-dapp/badge/?version=latest)](https://voting-dapp.readthedocs.io/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/asastats/voting-dapp/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/voting-dapp)
+[![build-status](https://github.com/asastats/voting-dapp/actions/workflows/build.yml/badge.svg)](https://github.com/asastats/voting-dapp/actions/workflows/build.yml) [![docs](https://img.shields.io/readthedocs/asastats/latest)](https://voting-dapp.readthedocs.io/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/asastats/voting-dapp/graph/badge.svg?token=DQC4SRY8J9)](https://codecov.io/gh/asastats/voting-dapp)
 
 
 The smart contract and the admin scripts for on-chain voting of the ASA Stats DAO.
