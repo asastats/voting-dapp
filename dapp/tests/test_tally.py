@@ -244,6 +244,18 @@ class TestTallySession:
         assert report["problems"] == []
         assert report["notes"][0] == "The snapshot is not sealed yet"
 
+    def test_tally_session_notes_a_lapsed_session(self):
+        session = _session(
+            status=0, snapshot_hash="00" * 32, voters_count=0, totals=[0, 0, 0]
+        )
+        ballots = {seat: _ballot(box["eligible"]) for seat, box in _ballots().items()}
+        report = _run(session=session, ballots=ballots, events=[], now=105)
+        assert report["problems"] == []
+        assert report["notes"] == [
+            "The snapshot is not sealed yet",
+            "Lapsed: not sealed before the start round, so no vote is possible",
+        ]
+
     def test_tally_session_compares_boxes_with_the_file(self):
         ballots = _ballots()
         del ballots[SEAT3]

@@ -239,6 +239,10 @@ def tally_session(
                 f"Result recomputed {STATUS_NAMES[status]} winner {winner}, session "
                 f"{STATUS_NAMES[session['status']]} winner {session['winner']}"
             )
+    elif session["status"] == 0 and current_round >= session["start_round"]:
+        notes.append(
+            "Lapsed: not sealed before the start round, so no vote is possible"
+        )
     elif session["status"] == STATUS_SEALED and current_round > session["end_round"]:
         notes.append(f"Not finalized yet; finalize would record {STATUS_NAMES[status]}")
     else:

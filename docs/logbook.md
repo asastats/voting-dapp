@@ -197,3 +197,10 @@ the contract's own, tested against the deployed Permission dApp on localnet.
 Localnet: the integration test needs the localnet indexer. On 2026-11-23 it stayed
 at round 0 because Conduit rejected the newer algod's blocks ("unknown protocol …
 upgrade"); `algokit localnet reset --update` fixed it.
+
+2026-11-23, later. Run read-only against Testnet app 775947805. Session 1 (the
+November integration run; its snapshot file was not kept, so one rebuilt from the
+ballot boxes was used) agreed in events, weights, totals and result; the only
+problem was the rebuilt file's hash, as expected. Session 2 is unsealed with its
+start round passed; the tally said "Voting runs from …", so a "Lapsed" note was
+added for that case (the website's "lapsed" phase).
