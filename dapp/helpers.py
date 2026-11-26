@@ -77,7 +77,9 @@ def decode_ballot(data):
     :type data: bytes
     :return: dict
     """
-    return _decode(data, BALLOT_LAYOUT)
+    ballot = _decode(data, BALLOT_LAYOUT)
+    ballot["weighed"] = bool(ballot["weighed"])
+    return ballot
 
 
 def decode_session(data):
@@ -165,23 +167,25 @@ def load_contract():
     return Contract.undictify(read_json(ARTIFACTS / f"{DAPP_NAME}.arc56.json"))
 
 
-# # SNAPSHOT
-def read_snapshot(filename):
-    """Return snapshot round and eligible amount per seat from a snapshot file.
+# # FINAL
+def read_final(filename):
+    """Return the holdings rounds and the lowest amount per seat from a period file.
 
-    :param filename: full path to the snapshot JSON file
+    :param filename: full path to the file written by ``daosnapshot … --to``
     :type filename: :class:`pathlib.Path`
-    :var data: snapshot file's content
+    :var data: file's content
     :type data: dict
-    :return: two-tuple
+    :return: three-tuple
     """
     data = read_json(filename)
-    if "snapshot_round" not in data or "seats" not in data:
-        raise ValueError(f"Not a snapshot file: {filename}")
+    if not {"start_round", "end_round", "seats"} <= set(data):
+        raise ValueError(f"Not a period file: {filename}")
 
-    return data["snapshot_round"], {
-        address: seat["total"] for address, seat in data["seats"].items()
-    }
+    return (
+        data["start_round"],
+        data["end_round"],
+        {address: seat["total"] for address, seat in data["seats"].items()},
+    )
 
 
 def sha256_of_file(filename):

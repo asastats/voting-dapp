@@ -16,17 +16,18 @@ ADDRESS = "2EVGZ4BGOSL3J64UYDE2BUGTNTBZZZLI54VUQQNZZLYCDODLY33UGXNSIU"
 
 def _session_bytes(options_count=3):
     return (
-        (5).to_bytes(8, "big")
-        + b"\x02" * 32
-        + (20).to_bytes(8, "big")
+        (20).to_bytes(8, "big")
         + (30).to_bytes(8, "big")
-        + bytes([options_count])
+        + (40).to_bytes(8, "big")
+        + bytes([options_count, 2])
         + (9).to_bytes(8, "big")
         + (2).to_bytes(8, "big")
         + (3).to_bytes(8, "big")
         + b"\x01" * 32
+        + b"\x02" * 32
         + b"\x01\xff"
         + (4).to_bytes(8, "big")
+        + (3).to_bytes(8, "big")
         + b"".join(value.to_bytes(8, "big") for value in (11, 12, 13, 0, 0, 0, 0, 0))
     )
 
@@ -44,33 +45,38 @@ class TestHelpersBoxes:
 
     def test_helpers_decode_session(self):
         assert helpers.decode_session(_session_bytes()) == {
-            "snapshot_round": 5,
-            "snapshot_hash": "02" * 32,
             "start_round": 20,
             "end_round": 30,
+            "seal_round": 40,
             "options_count": 3,
+            "abstain": 2,
             "quorum": 9,
             "threshold_num": 2,
             "threshold_den": 3,
             "proposal_hash": "01" * 32,
+            "final_hash": "02" * 32,
             "status": 1,
             "winner": 255,
             "voters_count": 4,
+            "weighed_count": 3,
             "totals": [11, 12, 13],
         }
 
-    def test_helpers_decode_ballot(self):
+    @pytest.mark.parametrize("flag,weighed", [(b"\x80", True), (b"\x00", False)])
+    def test_helpers_decode_ballot(self, flag, weighed):
         data = (
-            (7).to_bytes(8, "big")
-            + b"\x02"
+            b"\x02"
             + (5).to_bytes(8, "big")
+            + (7).to_bytes(8, "big")
             + (6).to_bytes(8, "big")
+            + flag
         )
         assert helpers.decode_ballot(data) == {
-            "eligible": 7,
             "option": 2,
             "max_votes": 5,
+            "eligible": 7,
             "weight": 6,
+            "weighed": weighed,
         }
 
     def test_helpers_decode_raises_for_unexpected_size(self):
@@ -134,31 +140,34 @@ class TestHelpersContract:
         )
 
 
-class TestHelpersSnapshot:
-    """Testing class for the snapshot file functions."""
+class TestHelpersFinal:
+    """Testing class for the final file functions."""
 
-    def test_helpers_read_snapshot(self, tmp_path):
-        filename = tmp_path / "snapshot.json"
+    def test_helpers_read_final(self, tmp_path):
+        filename = tmp_path / "final.json"
         filename.write_text(
             json.dumps(
                 {
-                    "snapshot_round": 55,
+                    "start_round": 55,
+                    "end_round": 99,
                     "asset_id": 393537671,
                     "seats": {
-                        "A": {"total": 30, "venues": {"wallet": 10, "pool": 20}},
-                        "B": {"total": 5, "venues": {"wallet": 5}},
+                        "A": {"start_total": 40, "total": 30, "venues": {"wallet": 30}},
+                        "B": {"start_total": 5, "total": 5, "venues": {"wallet": 5}},
                     },
                 }
             )
         )
-        assert helpers.read_snapshot(filename) == (55, {"A": 30, "B": 5})
+        assert helpers.read_final(filename) == (55, 99, {"A": 30, "B": 5})
 
-    @pytest.mark.parametrize("content", ['{"seats": {}}', '{"snapshot_round": 1}', "x"])
-    def test_helpers_read_snapshot_raises_for_other_files(self, tmp_path, content):
-        filename = tmp_path / "snapshot.json"
+    @pytest.mark.parametrize(
+        "content", ['{"seats": {}, "start_round": 1}', '{"snapshot_round": 1}', "x"]
+    )
+    def test_helpers_read_final_raises_for_other_files(self, tmp_path, content):
+        filename = tmp_path / "final.json"
         filename.write_text(content)
-        with pytest.raises(ValueError, match="Not a snapshot file"):
-            helpers.read_snapshot(filename)
+        with pytest.raises(ValueError, match="Not a period file"):
+            helpers.read_final(filename)
 
     def test_helpers_sha256_of_file(self, tmp_path):
         filename = tmp_path / "proposal.md"

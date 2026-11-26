@@ -18,6 +18,12 @@ class TestDeploy:
         assert deploy.algod_client(env, "testnet") == mocked_client.return_value
         mocked_client.assert_called_once_with("token", "address")
 
+    def test_deploy_indexer_client(self, mocker):
+        mocked_client = mocker.patch("dapp.deploy.IndexerClient")
+        env = {"indexer_token_mainnet": "token", "indexer_address_mainnet": "address"}
+        assert deploy.indexer_client(env, "mainnet") == mocked_client.return_value
+        mocked_client.assert_called_once_with("token", "address")
+
     def test_deploy_deploy_app_records_app_id(self, mocker, tmp_path):
         for name in ("approval.teal", "clear.teal"):
             (tmp_path / f"VotingDApp.{name}").write_text(name)

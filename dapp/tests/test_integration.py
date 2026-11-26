@@ -33,10 +33,11 @@ from dapp.network import (
     create_app,
     create_session,
     finalize,
-    seal_snapshot,
+    holdings_rounds,
+    seal_final,
     session_ballots,
     session_values,
-    set_snapshot,
+    set_final,
     vote,
 )
 from dapp.tally import tally
@@ -44,7 +45,7 @@ from dapp.tally import tally
 MICRO = 1_000_000
 PERMISSION_ARTIFACTS = Path(__file__).resolve().parent / "artifacts"
 PROPOSAL_HASH = b"\x01" * 32
-SNAPSHOT_HASH = b"\x02" * 32
+FINAL_HASH = b"\x02" * 32
 LOGIC_ERROR = "logic eval error"
 
 
@@ -177,21 +178,21 @@ class Deployment:
 
         return account
 
-    def session(self, lead=20, length=10, **kwargs):
-        """Create a session starting `lead` rounds from now; return its values."""
-        current = self.algod.status()["last-round"]
-        start_round = current + lead
+    def session(self, lead=20, length=10, review=5, **kwargs):
+        """Create a session starting `lead` rounds from now; return its rounds."""
+        start_round = self.algod.status()["last-round"] + lead
+        end_round = start_round + length
         session_id = create_session(
             self.algod,
             self.app_id,
             self.parameters,
-            current,
             start_round,
-            start_round + length,
+            end_round,
+            end_round + review,
             PROPOSAL_HASH,
             **kwargs,
         )
-        return session_id, start_round, start_round + length
+        return session_id, start_round, end_round, end_round + review
 
     def vote(self, account, session_id, option):
         vote(
@@ -240,13 +241,13 @@ def _wait_for_indexer(indexer, target_round, timeout=60):
 class TestIntegrationSession:
     """Testing class for a whole voting session on localnet."""
 
-    def test_integration_session_from_snapshot_to_finalize(self, deployment):
+    def test_integration_session_from_votes_to_finalize(self, deployment):
         algod, app_id = deployment.algod, deployment.app_id
-        capped_by_snapshot = deployment.seat(votes=10)
+        capped_by_amount = deployment.seat(votes=10)
         capped_by_votes = deployment.seat(votes=3)
-        whale = deployment.seat(votes=100)
-        removed = deployment.seat(votes=50)
-        session_id, start_round, end_round = deployment.session()
+        abstaining = deployment.seat(votes=100)
+        no_votes = deployment.seat(votes=None)
+        session_id, start_round, end_round, seal_round = deployment.session(abstain=2)
 
         assert session_id == 1
         assert app_global_state(algod, app_id) == {
@@ -255,147 +256,123 @@ class TestIntegrationSession:
             "session_count": 1,
         }
 
-        # snapshot with a wrong line and a seat to remove, then the correction
-        set_snapshot(
-            algod,
-            app_id,
-            deployment.parameters,
-            session_id,
-            {
-                capped_by_snapshot.address: 4 * MICRO,
-                capped_by_votes.address: 9 * MICRO,
-                whale.address: 6 * MICRO,
-                removed.address: 1 * MICRO,
-            },
-        )
-        set_snapshot(
-            algod,
-            app_id,
-            deployment.parameters,
-            session_id,
-            {capped_by_votes.address: 5 * MICRO + 7, removed.address: 0},
-        )
-        ballots = session_ballots(algod, app_id, session_id)
-        assert {address: ballot["eligible"] for address, ballot in ballots.items()} == {
-            capped_by_snapshot.address: 4 * MICRO,
-            capped_by_votes.address: 5 * MICRO + 7,
-            whale.address: 6 * MICRO,
-        }
-        assert all(ballot["option"] == NOT_VOTED for ballot in ballots.values())
-
-        # no vote before the seal, and none before the start
+        # no vote before the start
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            deployment.vote(whale, session_id, 0)
-        seal_snapshot(algod, app_id, deployment.parameters, session_id, SNAPSHOT_HASH)
-        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            set_snapshot(
-                algod, app_id, deployment.parameters, session_id, {whale.address: 1}
-            )
-        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            deployment.vote(whale, session_id, 0)
+            deployment.vote(abstaining, session_id, 0)
 
         _advance_to(algod, deployment.admin, start_round)
-        deployment.vote(capped_by_snapshot, session_id, 0)
+        deployment.vote(capped_by_amount, session_id, 1)
         deployment.vote(capped_by_votes, session_id, 0)
-        deployment.vote(whale, session_id, 1)
-        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            deployment.vote(removed, session_id, 0)
-        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            deployment.vote(whale, session_id, 3)
+        deployment.vote(abstaining, session_id, 2)
+        for account, option in ((no_votes, 0), (abstaining, 3)):
+            with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
+                deployment.vote(account, session_id, option)
+        # a changed vote doesn't count the voter twice
+        deployment.vote(capped_by_amount, session_id, 0)
 
         session = session_values(algod, app_id, session_id)
-        assert session["status"] == 1
-        assert session["snapshot_hash"] == SNAPSHOT_HASH.hex()
-        assert session["proposal_hash"] == PROPOSAL_HASH.hex()
+        assert session["status"] == 0
+        assert session["abstain"] == 2
+        assert session["seal_round"] == seal_round
         assert session["voters_count"] == 3
-        assert session["totals"] == [7 * MICRO, 6 * MICRO, 0]
-        ballots = session_ballots(algod, app_id, session_id)
-        assert ballots[capped_by_snapshot.address] == {
-            "eligible": 4 * MICRO,
+        assert session["totals"] == [0, 0, 0]
+        assert session_ballots(algod, app_id, session_id)[capped_by_amount.address] == {
             "option": 0,
             "max_votes": 10,
-            "weight": 4 * MICRO,
+            "eligible": 0,
+            "weight": 0,
+            "weighed": False,
         }
-        assert ballots[capped_by_votes.address]["weight"] == 3 * MICRO
 
-        # a changed vote moves the weight and doesn't count the voter twice
-        deployment.vote(capped_by_snapshot, session_id, 1)
-        session = session_values(algod, app_id, session_id)
-        assert session["voters_count"] == 3
-        assert session["totals"] == [3 * MICRO, 10 * MICRO, 0]
-
+        # the final amounts only after the end, then sealed after the review
+        amounts = {
+            capped_by_amount.address: 4 * MICRO,
+            capped_by_votes.address: 9 * MICRO,
+            abstaining.address: 500 * MICRO,
+        }
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            finalize(algod, app_id, _parameters(whale), session_id)
+            set_final(algod, app_id, deployment.parameters, session_id, amounts)
         _advance_to(algod, deployment.admin, end_round + 1)
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            deployment.vote(whale, session_id, 0)
-
-        finalize(algod, app_id, _parameters(whale), session_id)
+            deployment.vote(abstaining, session_id, 0)
+        set_final(
+            algod,
+            app_id,
+            deployment.parameters,
+            session_id,
+            {**amounts, capped_by_amount.address: 6 * MICRO},
+        )
+        set_final(  # a correction moves the weight
+            algod,
+            app_id,
+            deployment.parameters,
+            session_id,
+            {capped_by_amount.address: 4 * MICRO},
+        )
         session = session_values(algod, app_id, session_id)
-        assert session["status"] == 2
-        assert session["winner"] == 1
+        assert session["weighed_count"] == 3
+        assert session["totals"] == [7 * MICRO, 0, 100 * MICRO]
+        ballots = session_ballots(algod, app_id, session_id)
+        assert ballots[capped_by_amount.address]["weight"] == 4 * MICRO
+        assert ballots[capped_by_votes.address]["weight"] == 3 * MICRO
+
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            finalize(algod, app_id, _parameters(whale), session_id)
+            finalize(algod, app_id, _parameters(abstaining), session_id)
+        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
+            seal_final(algod, app_id, deployment.parameters, session_id, FINAL_HASH)
+        _advance_to(algod, deployment.admin, seal_round)
+        seal_final(algod, app_id, deployment.parameters, session_id, FINAL_HASH)
+        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
+            set_final(algod, app_id, deployment.parameters, session_id, amounts)
+
+        # Abstain holds most of the weight but can't win
+        finalize(algod, app_id, _parameters(abstaining), session_id)
+        session = session_values(algod, app_id, session_id)
+        assert session["final_hash"] == FINAL_HASH.hex()
+        assert (session["status"], session["winner"]) == (2, 0)
+        with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
+            finalize(algod, app_id, _parameters(abstaining), session_id)
 
     def test_integration_session_fails_below_two_thirds(self, deployment):
         algod, app_id = deployment.algod, deployment.app_id
         seat1, seat2 = deployment.seat(votes=66), deployment.seat(votes=34)
-        session_id, start_round, end_round = deployment.session(
+        session_id, start_round, end_round, seal_round = deployment.session(
             options_count=2, threshold=(2, 3)
         )
-        set_snapshot(
+        _advance_to(algod, deployment.admin, start_round)
+        deployment.vote(seat1, session_id, 0)
+        deployment.vote(seat2, session_id, 1)
+        _advance_to(algod, deployment.admin, seal_round)
+        set_final(
             algod,
             app_id,
             deployment.parameters,
             session_id,
             {seat1.address: 500 * MICRO, seat2.address: 500 * MICRO},
         )
-        seal_snapshot(algod, app_id, deployment.parameters, session_id, SNAPSHOT_HASH)
-        _advance_to(algod, deployment.admin, start_round)
-        deployment.vote(seat1, session_id, 0)
-        deployment.vote(seat2, session_id, 1)
-        _advance_to(algod, deployment.admin, end_round + 1)
+        seal_final(algod, app_id, deployment.parameters, session_id, FINAL_HASH)
 
         finalize(algod, app_id, deployment.parameters, session_id)
 
         session = session_values(algod, app_id, session_id)
         assert session["totals"] == [66 * MICRO, 34 * MICRO]
-        assert session["status"] == 3
-        assert session["winner"] == NOT_VOTED
+        assert (session["status"], session["winner"]) == (3, NOT_VOTED)
 
-    def test_integration_seat_without_permission_box_cannot_vote(self, deployment):
+    def test_integration_final_amounts_in_several_calls(self, deployment):
         algod, app_id = deployment.algod, deployment.app_id
-        seat = deployment.seat(votes=None)
-        zero_votes = deployment.seat(votes=0)
-        session_id, start_round, _ = deployment.session()
-        set_snapshot(
-            algod,
-            app_id,
-            deployment.parameters,
-            session_id,
-            {seat.address: MICRO, zero_votes.address: MICRO},
-        )
-        seal_snapshot(algod, app_id, deployment.parameters, session_id, SNAPSHOT_HASH)
+        seats = [deployment.seat(votes=1) for _ in range(9)]
+        session_id, start_round, end_round, _ = deployment.session()
         _advance_to(algod, deployment.admin, start_round)
+        for seat in seats:
+            deployment.vote(seat, session_id, 0)
+        _advance_to(algod, deployment.admin, end_round + 1)
 
-        for account in (seat, zero_votes):
-            with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-                deployment.vote(account, session_id, 0)
-
-    def test_integration_snapshot_is_written_in_several_calls(self, deployment):
-        algod, app_id = deployment.algod, deployment.app_id
-        session_id, _, _ = deployment.session()
-        amounts = {
-            deployment.algorand.account.random().address: index + 1
-            for index in range(9)
-        }
-
-        set_snapshot(algod, app_id, deployment.parameters, session_id, amounts)
+        amounts = {seat.address: index + 1 for index, seat in enumerate(seats)}
+        set_final(algod, app_id, deployment.parameters, session_id, amounts)
 
         ballots = session_ballots(algod, app_id, session_id)
-        assert {
-            address: ballot["eligible"] for address, ballot in ballots.items()
-        } == amounts
+        assert {address: box["eligible"] for address, box in ballots.items()} == amounts
+        assert session_values(algod, app_id, session_id)["totals"][0] == 45
         assert session_ballots(algod, app_id, session_id + 1) == {}
 
     def test_integration_missing_session(self, deployment):
@@ -413,14 +390,24 @@ class TestIntegrationAdmin:
         current = algod.status()["last-round"]
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
             create_session(
-                algod, app_id, other, current, current + 20, current + 30, PROPOSAL_HASH
+                algod,
+                app_id,
+                other,
+                current + 20,
+                current + 30,
+                current + 40,
+                PROPOSAL_HASH,
             )
 
-        session_id, _, _ = deployment.session()
+        seat = deployment.seat(votes=1)
+        session_id, start_round, end_round, seal_round = deployment.session()
+        _advance_to(algod, deployment.admin, start_round)
+        deployment.vote(seat, session_id, 0)
+        _advance_to(algod, deployment.admin, seal_round)
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            set_snapshot(algod, app_id, other, session_id, {other["sender"]: 1})
+            set_final(algod, app_id, other, session_id, {seat.address: 1})
         with pytest.raises(AlgodHTTPError, match=LOGIC_ERROR):
-            seal_snapshot(algod, app_id, other, session_id, SNAPSHOT_HASH)
+            seal_final(algod, app_id, other, session_id, FINAL_HASH)
 
     def test_integration_only_admin_updates_and_deletes(self, deployment):
         algod, app_id = deployment.algod, deployment.app_id
@@ -455,15 +442,34 @@ class TestIntegrationTally:
         algod, app_id = deployment.algod, deployment.app_id
         indexer = deployment.algorand.client.indexer
         first, second, third = (deployment.seat(votes=votes) for votes in (10, 3, 5))
-        session_id, start_round, end_round = deployment.session(length=12)
+        session_id, start_round, end_round, seal_round = deployment.session(
+            length=12, abstain=2
+        )
+        proposal = tmp_path / "proposal.md"
+        proposal.write_bytes(b"proposal")
 
-        snapshot_file = tmp_path / "snapshot.json"
-        snapshot_file.write_text(
+        _advance_to(algod, deployment.admin, start_round)
+        deployment.vote(first, session_id, 1)
+        deployment.vote(second, session_id, 1)
+        deployment.vote(first, session_id, 0)  # changed: only the last vote counts
+        _set_votes(deployment, second, 7)  # after its vote: noted, not a problem
+        _advance_to(algod, deployment.admin, seal_round)
+        _wait_for_indexer(indexer, algod.status()["last-round"])
+
+        # localnet holds its own "holdings", so the rounds map onto themselves
+        start, end = holdings_rounds(
+            session_values(algod, app_id, session_id),
+            indexer,
+            indexer,
+            indexer.health()["round"],
+            False,
+        )
+        final_file = tmp_path / "final.json"
+        final_file.write_text(
             json.dumps(
                 {
-                    "snapshot_round": session_values(algod, app_id, session_id)[
-                        "snapshot_round"
-                    ],
+                    "start_round": start,
+                    "end_round": end,
                     "asset_id": 393537671,
                     "seats": {
                         first.address: {"total": 4 * MICRO, "venues": {}},
@@ -473,38 +479,27 @@ class TestIntegrationTally:
                 }
             )
         )
-        proposal = tmp_path / "proposal.md"
-        proposal.write_bytes(b"proposal")
-        set_snapshot(
+        set_final(
             algod,
             app_id,
             deployment.parameters,
             session_id,
-            {
-                first.address: 4 * MICRO,
-                second.address: 9 * MICRO,
-                third.address: 2 * MICRO,
-            },
+            {first.address: 4 * MICRO, second.address: 9 * MICRO},
         )
-        seal_snapshot(
-            algod,
-            app_id,
-            deployment.parameters,
-            session_id,
-            sha256_of_file(snapshot_file),
+        seal_final(
+            algod, app_id, deployment.parameters, session_id, sha256_of_file(final_file)
         )
-
-        _advance_to(algod, deployment.admin, start_round)
-        deployment.vote(first, session_id, 1)
-        deployment.vote(second, session_id, 1)
-        deployment.vote(first, session_id, 0)  # changed: the weight moves to 0
-        _set_votes(deployment, second, 7)  # after its vote: noted, not a problem
-        _advance_to(algod, deployment.admin, end_round + 1)
         finalize(algod, app_id, _parameters(first), session_id)
         _wait_for_indexer(indexer, algod.status()["last-round"])
 
-        clients = (algod, indexer, app_id, deployment.permission_id)
-        report = tally("localnet", session_id, snapshot_file, clients=clients)
+        clients = (algod, indexer, indexer, app_id, deployment.permission_id)
+        report = tally(
+            "localnet", session_id, final_file, str(proposal), clients=clients
+        )
+        assert report["problems"] == [
+            "The proposal file's sha256 differs from the session's"
+        ]
+        report = tally("localnet", session_id, final_file, clients=clients)
         assert report["problems"] == []
         assert report["totals"] == [4 * MICRO, 3 * MICRO, 0]
         assert report["voters"] == 2
@@ -514,13 +509,10 @@ class TestIntegrationTally:
         ]
         assert capsys.readouterr().out.endswith("Everything agrees\n")
 
-        # a file that isn't the sealed one, and a proposal that isn't the session's
-        snapshot_file.write_text(
-            snapshot_file.read_text().replace("9000000", "9000001")
-        )
-        report = tally("localnet", session_id, snapshot_file, str(proposal), clients)
+        # a file that isn't the sealed one
+        final_file.write_text(final_file.read_text().replace("9000000", "9000001"))
+        report = tally("localnet", session_id, final_file, clients=clients)
         assert report["problems"] == [
-            "The snapshot file's sha256 differs from the sealed hash",
-            "The proposal file's sha256 differs from the session's",
-            f"{second.address}: box eligible {9 * MICRO}, file {9 * MICRO + 1}",
+            "The final file's sha256 differs from the sealed hash",
+            f"{second.address}: box amount {9 * MICRO}, file {9 * MICRO + 1}",
         ]

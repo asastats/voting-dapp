@@ -17,7 +17,6 @@ from algosdk.atomic_transaction_composer import (
 from algosdk.encoding import decode_address
 from algosdk.error import AlgodHTTPError
 
-from dapp.configuration import NOT_VOTED
 from dapp.deploy import algod_client
 from dapp.helpers import (
     admin_parameters,
@@ -31,10 +30,10 @@ from dapp.helpers import (
 from dapp.network import (
     create_session,
     finalize,
-    seal_snapshot,
+    seal_final,
     session_ballots,
     session_values,
-    set_snapshot,
+    set_final,
     vote,
 )
 
@@ -42,9 +41,10 @@ pytestmark = pytest.mark.testnet
 
 MICRO = 1_000_000
 PERMISSION_ARTIFACTS = Path(__file__).resolve().parent / "artifacts"
-# rounds left for creating the session, writing and sealing the snapshot
-LEAD_ROUNDS = 20
+# rounds left for creating the session
+LEAD_ROUNDS = 10
 VOTING_ROUNDS = 8
+REVIEW_ROUNDS = 3
 SEAT_VOTES = 5
 SEAT_ELIGIBLE = 3 * MICRO + 1
 
@@ -78,7 +78,7 @@ def _permission_call(client, permission_id, admin, method, seat, *args):
 class TestIntegrationTestnet:
     """Testing class for a whole voting session on Testnet."""
 
-    def test_integration_testnet_session_from_snapshot_to_finalize(self):
+    def test_integration_testnet_session_from_votes_to_finalize(self):
         env = environment_variables()
         client = algod_client(env, "testnet")
         app_id = voting_dapp_id(network="testnet")
@@ -105,47 +105,46 @@ class TestIntegrationTestnet:
             base64.b64encode(SEAT_VOTES.to_bytes(8, "big") + bytes(40)).decode(),
         )
         try:
-            current = client.status()["last-round"]
-            start_round = current + LEAD_ROUNDS
+            start_round = client.status()["last-round"] + LEAD_ROUNDS
             end_round = start_round + VOTING_ROUNDS
+            seal_round = end_round + REVIEW_ROUNDS
             session_id = create_session(
-                client, app_id, admin, current, start_round, end_round, b"\x01" * 32
+                client,
+                app_id,
+                admin,
+                start_round,
+                end_round,
+                seal_round,
+                b"\x01" * 32,
+                abstain=2,
             )
-            set_snapshot(client, app_id, admin, session_id, {seat: SEAT_ELIGIBLE})
-            seal_snapshot(client, app_id, admin, session_id, b"\x02" * 32)
-
             session = session_values(client, app_id, session_id)
-            assert session["status"] == 1
-            assert session["snapshot_round"] == current
-            ballots = session_ballots(client, app_id, session_id)
-            assert ballots[seat]["eligible"] == SEAT_ELIGIBLE
-            assert ballots[seat]["option"] == NOT_VOTED
+            assert (session["status"], session["abstain"]) == (0, 2)
 
-            # the session is sealed, but it hasn't started
+            # the session hasn't started
             with pytest.raises(AlgodHTTPError, match="logic eval error"):
                 vote(client, app_id, permission_id, seat_parameters, session_id, 1)
 
             _wait_for_round(client, start_round)
             vote(client, app_id, permission_id, seat_parameters, session_id, 1)
-            session = session_values(client, app_id, session_id)
-            assert session["voters_count"] == 1
-            assert session["totals"] == [0, SEAT_ELIGIBLE, 0]
-            assert session_ballots(client, app_id, session_id)[seat] == {
-                "eligible": SEAT_ELIGIBLE,
-                "option": 1,
-                "max_votes": SEAT_VOTES,
-                "weight": SEAT_ELIGIBLE,
-            }
-
             vote(client, app_id, permission_id, seat_parameters, session_id, 0)
             session = session_values(client, app_id, session_id)
             assert session["voters_count"] == 1
-            assert session["totals"] == [SEAT_ELIGIBLE, 0, 0]
+            assert session["totals"] == [0, 0, 0]
 
-            _wait_for_round(client, end_round + 1)
+            _wait_for_round(client, seal_round)
+            set_final(client, app_id, admin, session_id, {seat: SEAT_ELIGIBLE})
+            assert session_ballots(client, app_id, session_id)[seat] == {
+                "option": 0,
+                "max_votes": SEAT_VOTES,
+                "eligible": SEAT_ELIGIBLE,
+                "weight": SEAT_ELIGIBLE,
+                "weighed": True,
+            }
+            seal_final(client, app_id, admin, session_id, b"\x02" * 32)
             finalize(client, app_id, seat_parameters, session_id)
             session = session_values(client, app_id, session_id)
-            assert session["status"] == 2
-            assert session["winner"] == 0
+            assert session["totals"] == [SEAT_ELIGIBLE, 0, 0]
+            assert (session["status"], session["winner"]) == (2, 0)
         finally:
             _permission_call(client, permission_id, admin, "delete_box", seat)

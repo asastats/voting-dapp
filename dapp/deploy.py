@@ -6,6 +6,7 @@ from algosdk.atomic_transaction_composer import sign_transaction_with_signer
 from algosdk.logic import get_application_address
 from algosdk.transaction import PaymentTxn
 from algosdk.v2client.algod import AlgodClient
+from algosdk.v2client.indexer import IndexerClient
 
 from .helpers import (
     ARTIFACTS,
@@ -30,6 +31,20 @@ def algod_client(env, network):
     """
     return AlgodClient(
         env.get(f"algod_token_{network}"), env.get(f"algod_address_{network}")
+    )
+
+
+def indexer_client(env, network):
+    """Return Algorand Indexer client for the provided `network`.
+
+    :param env: environment variables collection
+    :type env: dict
+    :param network: network to connect to (e.g., "testnet")
+    :type network: str
+    :return: :class:`IndexerClient`
+    """
+    return IndexerClient(
+        env.get(f"indexer_token_{network}"), env.get(f"indexer_address_{network}")
     )
 
 

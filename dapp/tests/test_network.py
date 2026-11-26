@@ -6,7 +6,7 @@ The calls themselves run against localnet in `test_integration`.
 import base64
 
 import pytest
-from algosdk.error import AlgodHTTPError
+from algosdk.error import AlgodHTTPError, IndexerHTTPError
 
 from dapp import network
 
@@ -81,3 +81,62 @@ class TestNetworkCall:
     def test_network_call_raises_other_errors_unchanged(self, mocker):
         with pytest.raises(AlgodHTTPError, match="^rejected$"):
             self._failing_call(mocker, None)
+
+
+class _Indexer:
+    """Indexer stand-in: `timestamps` by round, unknown rounds not confirmed."""
+
+    def __init__(self, timestamps):
+        self.timestamps, self.calls = timestamps, []
+
+    def block_info(self, block):
+        self.calls.append(block)
+        if block not in self.timestamps:
+            raise IndexerHTTPError("error fetching block")
+        return {"timestamp": self.timestamps[block]}
+
+
+class TestNetworkHoldingsRounds:
+    """Testing class for the functions mapping session rounds to holdings rounds."""
+
+    MAINNET = {block: 1000 + 3 * block for block in range(1, 101)}  # 3 s a round
+
+    def test_network_block_timestamp(self):
+        assert network.block_timestamp(_Indexer({7: 99}), 7) == 99
+
+    @pytest.mark.parametrize(
+        "timestamp,expected",
+        [(1003, 1), (1150, 50), (1151, 50), (1300, 100), (9e9, 100)],
+    )
+    def test_network_round_at_timestamp(self, timestamp, expected):
+        indexer = _Indexer(self.MAINNET)
+        assert network.round_at_timestamp(indexer, timestamp, 100) == expected
+        assert len(indexer.calls) < 10
+
+    def test_network_holdings_rounds_maps_times(self):
+        voting = _Indexer({20: 1060, 30: 1151})
+        returned = network.holdings_rounds(
+            {"start_round": 20, "end_round": 30},
+            voting,
+            _Indexer(self.MAINNET),
+            100,
+            False,
+        )
+        assert returned == (20, 50)
+
+    def test_network_holdings_rounds_same_network(self):
+        voting = _Indexer({20: 1, 30: 2})
+        returned = network.holdings_rounds(
+            {"start_round": 20, "end_round": 30}, voting, None, 100, True
+        )
+        assert returned == (20, 30)
+
+    def test_network_holdings_rounds_before_the_end(self):
+        returned = network.holdings_rounds(
+            {"start_round": 20, "end_round": 30},
+            _Indexer({20: 1060}),
+            _Indexer(self.MAINNET),
+            100,
+            False,
+        )
+        assert returned == (20, None)

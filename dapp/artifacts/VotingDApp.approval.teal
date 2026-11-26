@@ -4,27 +4,27 @@
 // algopy.arc4.ARC4Contract.approval_program() -> uint64:
 main:
     intcblock 8 0 1 32 255
-    bytecblock "admin" 0x73 "permission_app_id" "session_count" 0x76 0x01 0x151f7c75
+    bytecblock "admin" 0x73 0x00 "permission_app_id" "session_count" 0x151f7c75
     txn ApplicationID
     bnz main_after_if_else@2
-    // dapp/contract.py:88
+    // dapp/contract.py:91
     // self.permission_app_id = UInt64(0)
-    bytec_2 // "permission_app_id"
+    bytec_3 // "permission_app_id"
     intc_1 // 0
     app_global_put
-    // dapp/contract.py:89
+    // dapp/contract.py:92
     // self.admin = Account()
     bytec_0 // "admin"
     global ZeroAddress
     app_global_put
-    // dapp/contract.py:90
+    // dapp/contract.py:93
     // self.session_count = UInt64(0)
-    bytec_3 // "session_count"
+    bytec 4 // "session_count"
     intc_1 // 0
     app_global_put
 
 main_after_if_else@2:
-    // dapp/contract.py:84
+    // dapp/contract.py:87
     // class VotingDApp(ARC4Contract):
     txn NumAppArgs
     bz main_bare_routing@16
@@ -33,13 +33,13 @@ main_after_if_else@2:
     assert
     txn ApplicationID
     bz main_create_NoOp@12
-    pushbytess 0xfa9e7e41 0x511aa503 0x7653c17f 0xa278a8b6 0x4e919b15 // method "create_session(uint64,uint64,uint64,uint64,uint64,uint64,uint64,byte[32])uint64", method "set_snapshot(uint64,address[],uint64[])void", method "seal_snapshot(uint64,byte[32])void", method "vote(uint64,uint64)void", method "finalize(uint64)void"
+    pushbytess 0xab265ab3 0xa278a8b6 0x1a74fbe6 0x2875cab6 0x4e919b15 // method "create_session(uint64,uint64,uint64,uint64,uint64,uint64,uint64,uint64,byte[32])uint64", method "vote(uint64,uint64)void", method "set_final(uint64,address[],uint64[])void", method "seal_final(uint64,byte[32])void", method "finalize(uint64)void"
     txna ApplicationArgs 0
-    match create_session set_snapshot seal_snapshot vote finalize
+    match create_session vote set_final seal_final finalize
     err
 
 main_create_NoOp@12:
-    // dapp/contract.py:84
+    // dapp/contract.py:87
     // class VotingDApp(ARC4Contract):
     pushbytes 0xa03b81d2 // method "create_application(uint64)void"
     txna ApplicationArgs 0
@@ -47,7 +47,7 @@ main_create_NoOp@12:
     err
 
 main_bare_routing@16:
-    // dapp/contract.py:84
+    // dapp/contract.py:87
     // class VotingDApp(ARC4Contract):
     pushints 4 5 // UpdateApplication, DeleteApplication
     txn OnCompletion
@@ -55,11 +55,11 @@ main_bare_routing@16:
     err
 
 main_delete_application@18:
-    // dapp/contract.py:112
+    // dapp/contract.py:115
     // @arc4.baremethod(allow_actions=["DeleteApplication"])
     txn ApplicationID
     assert
-    // dapp/contract.py:115
+    // dapp/contract.py:118
     // assert Txn.sender == self.admin, "Only admin can delete application"
     txn Sender
     intc_1 // 0
@@ -68,17 +68,17 @@ main_delete_application@18:
     assert // check self.admin exists
     ==
     assert // Only admin can delete application
-    // dapp/contract.py:112
+    // dapp/contract.py:115
     // @arc4.baremethod(allow_actions=["DeleteApplication"])
     intc_2 // 1
     return
 
 main_update_application@17:
-    // dapp/contract.py:107
+    // dapp/contract.py:110
     // @arc4.baremethod(allow_actions=["UpdateApplication"])
     txn ApplicationID
     assert
-    // dapp/contract.py:110
+    // dapp/contract.py:113
     // assert Txn.sender == self.admin, "Only admin can update application"
     txn Sender
     intc_1 // 0
@@ -87,7 +87,7 @@ main_update_application@17:
     assert // check self.admin exists
     ==
     assert // Only admin can update application
-    // dapp/contract.py:107
+    // dapp/contract.py:110
     // @arc4.baremethod(allow_actions=["UpdateApplication"])
     intc_2 // 1
     return
@@ -95,7 +95,7 @@ main_update_application@17:
 
 // dapp.contract.VotingDApp.create_application[routing]() -> void:
 create_application:
-    // dapp/contract.py:94-95
+    // dapp/contract.py:97-98
     // # # LIFECYCLE
     // @arc4.abimethod(create="require")
     txna ApplicationArgs 1
@@ -105,21 +105,21 @@ create_application:
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
-    // dapp/contract.py:103
+    // dapp/contract.py:106
     // assert permission_app_id > 0, "Permission dApp ID is required"
     dup
     assert // Permission dApp ID is required
-    // dapp/contract.py:104
+    // dapp/contract.py:107
     // self.permission_app_id = permission_app_id
-    bytec_2 // "permission_app_id"
+    bytec_3 // "permission_app_id"
     swap
     app_global_put
-    // dapp/contract.py:105
+    // dapp/contract.py:108
     // self.admin = Txn.sender
     bytec_0 // "admin"
     txn Sender
     app_global_put
-    // dapp/contract.py:94-95
+    // dapp/contract.py:97-98
     // # # LIFECYCLE
     // @arc4.abimethod(create="require")
     intc_2 // 1
@@ -128,246 +128,8 @@ create_application:
 
 // dapp.contract.VotingDApp.create_session[routing]() -> void:
 create_session:
-    // dapp/contract.py:117-118
+    // dapp/contract.py:120-121
     // # # SESSION
-    // @arc4.abimethod
-    txna ApplicationArgs 1
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    dup
-    btoi
-    txna ApplicationArgs 2
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    dup
-    btoi
-    txna ApplicationArgs 3
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    dup
-    btoi
-    txna ApplicationArgs 4
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    btoi
-    txna ApplicationArgs 5
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    txna ApplicationArgs 6
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    dup
-    btoi
-    txna ApplicationArgs 7
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    dup
-    btoi
-    txna ApplicationArgs 8
-    dup
-    len
-    intc_3 // 32
-    ==
-    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
-    // dapp/contract.py:146
-    // assert Txn.sender == self.admin, "Only admin can create sessions"
-    txn Sender
-    intc_1 // 0
-    bytec_0 // "admin"
-    app_global_get_ex
-    assert // check self.admin exists
-    ==
-    assert // Only admin can create sessions
-    // dapp/contract.py:147
-    // assert snapshot_round < start_round, "Snapshot must precede the start"
-    uncover 11
-    dig 10
-    <
-    assert // Snapshot must precede the start
-    // dapp/contract.py:148
-    // assert Global.round < start_round, "Start round must be in the future"
-    global Round
-    dig 10
-    <
-    assert // Start round must be in the future
-    // dapp/contract.py:149
-    // assert start_round < end_round, "End must follow the start"
-    uncover 9
-    uncover 8
-    <
-    assert // End must follow the start
-    // dapp/contract.py:150
-    // assert options_count >= 2, "At least two options are required"
-    dig 6
-    pushint 2
-    >=
-    assert // At least two options are required
-    // dapp/contract.py:151
-    // assert options_count <= MAX_OPTIONS, "At most eight options are allowed"
-    dig 6
-    intc_0 // 8
-    <=
-    assert // At most eight options are allowed
-    // dapp/contract.py:152
-    // assert threshold_den > 0, "Threshold denominator is required"
-    dig 1
-    assert // Threshold denominator is required
-    // dapp/contract.py:153
-    // assert threshold_den <= MAX_THRESHOLD_DEN, "Threshold denominator too big"
-    dig 1
-    pushint 1000
-    <=
-    assert // Threshold denominator too big
-    // dapp/contract.py:154
-    // assert threshold_num < threshold_den, "Threshold must be below one"
-    dig 3
-    dig 2
-    <
-    assert // Threshold must be below one
-    // dapp/contract.py:155-156
-    // # at least a half, so that no two options can both clear the threshold
-    // assert threshold_num * 2 >= threshold_den, "Threshold must be at least half"
-    uncover 3
-    pushint 2
-    *
-    uncover 2
-    >=
-    assert // Threshold must be at least half
-    // dapp/contract.py:158
-    // session_id = self.session_count + 1
-    intc_1 // 0
-    bytec_3 // "session_count"
-    app_global_get_ex
-    assert // check self.session_count exists
-    intc_2 // 1
-    +
-    // dapp/contract.py:159
-    // self.session_count = session_id
-    bytec_3 // "session_count"
-    dig 1
-    app_global_put
-    // dapp/contract.py:162
-    // snapshot_hash=Hash.from_bytes(op.bzero(32)),
-    intc_3 // 32
-    bzero
-    // dapp/contract.py:165
-    // options_count=arc4.UInt8(options_count),
-    uncover 6
-    itob
-    dup
-    bitlen
-    intc_0 // 8
-    <=
-    assert // overflow
-    extract 7 1
-    // dapp/contract.py:170
-    // status=arc4.UInt8(STATUS_SNAPSHOT_OPEN),
-    intc_1 // 0
-    itob
-    // dapp/contract.py:173
-    // totals=Totals.from_bytes(op.bzero(64)),
-    pushint 64
-    bzero
-    // dapp/contract.py:160-174
-    // self.sessions[session_id] = Session(
-    //     snapshot_round=arc4.UInt64(snapshot_round),
-    //     snapshot_hash=Hash.from_bytes(op.bzero(32)),
-    //     start_round=arc4.UInt64(start_round),
-    //     end_round=arc4.UInt64(end_round),
-    //     options_count=arc4.UInt8(options_count),
-    //     quorum=arc4.UInt64(quorum),
-    //     threshold_num=arc4.UInt64(threshold_num),
-    //     threshold_den=arc4.UInt64(threshold_den),
-    //     proposal_hash=proposal_hash.copy(),
-    //     status=arc4.UInt8(STATUS_SNAPSHOT_OPEN),
-    //     winner=arc4.UInt8(NOT_VOTED),
-    //     voters_count=arc4.UInt64(0),
-    //     totals=Totals.from_bytes(op.bzero(64)),
-    // )
-    uncover 11
-    uncover 4
-    concat
-    uncover 10
-    concat
-    uncover 9
-    concat
-    uncover 3
-    concat
-    uncover 7
-    concat
-    uncover 6
-    concat
-    uncover 5
-    concat
-    uncover 4
-    concat
-    pushbytes 0x00ff
-    concat
-    uncover 2
-    concat
-    swap
-    concat
-    // dapp/contract.py:160
-    // self.sessions[session_id] = Session(
-    swap
-    itob
-    bytec_1 // 0x73
-    dig 1
-    concat
-    // dapp/contract.py:160-174
-    // self.sessions[session_id] = Session(
-    //     snapshot_round=arc4.UInt64(snapshot_round),
-    //     snapshot_hash=Hash.from_bytes(op.bzero(32)),
-    //     start_round=arc4.UInt64(start_round),
-    //     end_round=arc4.UInt64(end_round),
-    //     options_count=arc4.UInt8(options_count),
-    //     quorum=arc4.UInt64(quorum),
-    //     threshold_num=arc4.UInt64(threshold_num),
-    //     threshold_den=arc4.UInt64(threshold_den),
-    //     proposal_hash=proposal_hash.copy(),
-    //     status=arc4.UInt8(STATUS_SNAPSHOT_OPEN),
-    //     winner=arc4.UInt8(NOT_VOTED),
-    //     voters_count=arc4.UInt64(0),
-    //     totals=Totals.from_bytes(op.bzero(64)),
-    // )
-    uncover 2
-    box_put
-    // dapp/contract.py:117-118
-    // # # SESSION
-    // @arc4.abimethod
-    bytec 6 // 0x151f7c75
-    swap
-    concat
-    log
-    intc_2 // 1
-    return
-
-
-// dapp.contract.VotingDApp.set_snapshot[routing]() -> void:
-set_snapshot:
-    intc_1 // 0
-    // dapp/contract.py:177
     // @arc4.abimethod
     txna ApplicationArgs 1
     dupn 2
@@ -376,6 +138,543 @@ set_snapshot:
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
+    txna ApplicationArgs 2
+    dup
+    cover 2
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 3
+    dup
+    cover 3
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 4
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    dup
+    cover 4
+    txna ApplicationArgs 5
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    dup
+    cover 6
+    txna ApplicationArgs 6
+    dup
+    cover 8
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 7
+    dup
+    cover 8
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    cover 5
+    txna ApplicationArgs 8
+    dup
+    cover 9
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    cover 5
+    txna ApplicationArgs 9
+    dup
+    cover 10
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // dapp/contract.py:151
+    // assert Txn.sender == self.admin, "Only admin can create sessions"
+    txn Sender
+    intc_1 // 0
+    bytec_0 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    ==
+    assert // Only admin can create sessions
+    // dapp/contract.py:152
+    // assert Global.round < start_round, "Start round must be in the future"
+    global Round
+    dig 5
+    <
+    assert // Start round must be in the future
+    // dapp/contract.py:153
+    // assert start_round < end_round, "End must follow the start"
+    uncover 4
+    dig 4
+    <
+    assert // End must follow the start
+    // dapp/contract.py:154
+    // assert end_round < seal_round, "Seal round must follow the end"
+    uncover 3
+    uncover 3
+    <
+    assert // Seal round must follow the end
+    // dapp/contract.py:155
+    // assert options_count <= MAX_OPTIONS, "At most eight options are allowed"
+    swap
+    intc_0 // 8
+    <=
+    assert // At most eight options are allowed
+    // dapp/contract.py:157
+    // if abstain != NOT_VOTED:
+    intc 4 // 255
+    !=
+    bnz create_session_if_body@2
+    dig 2
+
+create_session_after_if_else@3:
+    // dapp/contract.py:160
+    // assert decisive >= 2, "At least two options besides Abstain are required"
+    pushint 2
+    >=
+    assert // At least two options besides Abstain are required
+    // dapp/contract.py:161
+    // assert threshold_den > 0, "Threshold denominator is required"
+    dup
+    assert // Threshold denominator is required
+    // dapp/contract.py:162
+    // assert threshold_den <= MAX_THRESHOLD_DEN, "Threshold denominator too big"
+    dup
+    pushint 1000
+    <=
+    assert // Threshold denominator too big
+    // dapp/contract.py:163
+    // assert threshold_num < threshold_den, "Threshold must be below one"
+    swap
+    dup
+    dig 2
+    <
+    assert // Threshold must be below one
+    // dapp/contract.py:164-165
+    // # at least a half, so that no two options can both clear the threshold
+    // assert threshold_num * 2 >= threshold_den, "Threshold must be at least half"
+    pushint 2
+    *
+    <=
+    assert // Threshold must be at least half
+    // dapp/contract.py:167
+    // session_id = self.session_count + 1
+    intc_1 // 0
+    bytec 4 // "session_count"
+    app_global_get_ex
+    assert // check self.session_count exists
+    intc_2 // 1
+    +
+    // dapp/contract.py:168
+    // self.session_count = session_id
+    bytec 4 // "session_count"
+    dig 1
+    app_global_put
+    // dapp/contract.py:173
+    // options_count=arc4.UInt8(options_count),
+    swap
+    itob
+    dup
+    bitlen
+    intc_0 // 8
+    <=
+    assert // overflow
+    extract 7 1
+    // dapp/contract.py:174
+    // abstain=arc4.UInt8(abstain),
+    uncover 2
+    itob
+    dup
+    bitlen
+    intc_0 // 8
+    <=
+    assert // overflow
+    extract 7 1
+    // dapp/contract.py:179
+    // final_hash=Hash.from_bytes(op.bzero(32)),
+    intc_3 // 32
+    bzero
+    // dapp/contract.py:180
+    // status=arc4.UInt8(STATUS_OPEN),
+    intc_1 // 0
+    itob
+    // dapp/contract.py:184
+    // totals=Totals.from_bytes(op.bzero(64)),
+    pushint 64
+    bzero
+    // dapp/contract.py:169-185
+    // self.sessions[session_id] = Session(
+    //     start_round=arc4.UInt64(start_round),
+    //     end_round=arc4.UInt64(end_round),
+    //     seal_round=arc4.UInt64(seal_round),
+    //     options_count=arc4.UInt8(options_count),
+    //     abstain=arc4.UInt8(abstain),
+    //     quorum=arc4.UInt64(quorum),
+    //     threshold_num=arc4.UInt64(threshold_num),
+    //     threshold_den=arc4.UInt64(threshold_den),
+    //     proposal_hash=proposal_hash.copy(),
+    //     final_hash=Hash.from_bytes(op.bzero(32)),
+    //     status=arc4.UInt8(STATUS_OPEN),
+    //     winner=arc4.UInt8(NOT_VOTED),
+    //     voters_count=arc4.UInt64(0),
+    //     weighed_count=arc4.UInt64(0),
+    //     totals=Totals.from_bytes(op.bzero(64)),
+    // )
+    uncover 12
+    uncover 12
+    concat
+    uncover 11
+    concat
+    uncover 5
+    concat
+    uncover 4
+    concat
+    uncover 8
+    concat
+    uncover 7
+    concat
+    uncover 6
+    concat
+    uncover 5
+    concat
+    uncover 3
+    concat
+    pushbytes 0x00ff
+    concat
+    dig 2
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    // dapp/contract.py:169
+    // self.sessions[session_id] = Session(
+    swap
+    itob
+    bytec_1 // 0x73
+    dig 1
+    concat
+    // dapp/contract.py:169-185
+    // self.sessions[session_id] = Session(
+    //     start_round=arc4.UInt64(start_round),
+    //     end_round=arc4.UInt64(end_round),
+    //     seal_round=arc4.UInt64(seal_round),
+    //     options_count=arc4.UInt8(options_count),
+    //     abstain=arc4.UInt8(abstain),
+    //     quorum=arc4.UInt64(quorum),
+    //     threshold_num=arc4.UInt64(threshold_num),
+    //     threshold_den=arc4.UInt64(threshold_den),
+    //     proposal_hash=proposal_hash.copy(),
+    //     final_hash=Hash.from_bytes(op.bzero(32)),
+    //     status=arc4.UInt8(STATUS_OPEN),
+    //     winner=arc4.UInt8(NOT_VOTED),
+    //     voters_count=arc4.UInt64(0),
+    //     weighed_count=arc4.UInt64(0),
+    //     totals=Totals.from_bytes(op.bzero(64)),
+    // )
+    uncover 2
+    box_put
+    // dapp/contract.py:120-121
+    // # # SESSION
+    // @arc4.abimethod
+    bytec 5 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return
+
+create_session_if_body@2:
+    // dapp/contract.py:158
+    // assert abstain < options_count, "Abstain must be one of the options"
+    dig 3
+    dig 3
+    dup
+    cover 2
+    <
+    assert // Abstain must be one of the options
+    // dapp/contract.py:159
+    // decisive -= 1
+    intc_2 // 1
+    -
+    b create_session_after_if_else@3
+
+
+// dapp.contract.VotingDApp.vote[routing]() -> void:
+vote:
+    // dapp/contract.py:188-189
+    // # # VOTING
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    dup
+    btoi
+    dup
+    cover 2
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    dup
+    cover 2
+    cover 3
+    // dapp/contract.py:198
+    // session = self._session(session_id)
+    callsub _session
+    dup
+    cover 4
+    // dapp/contract.py:199
+    // assert session.status == STATUS_OPEN, "Session is not open for voting"
+    dup
+    extract 114 1
+    intc_1 // 0
+    itob
+    cover 4
+    bytec_2 // 0x00
+    b==
+    assert // Session is not open for voting
+    // dapp/contract.py:200
+    // assert Global.round >= session.start_round, "Voting has not started"
+    dup
+    extract 0 8
+    global Round
+    itob
+    b<=
+    assert // Voting has not started
+    // dapp/contract.py:201
+    // assert Global.round <= session.end_round, "Voting has ended"
+    dup
+    extract 8 8
+    global Round
+    itob
+    b>=
+    assert // Voting has ended
+    // dapp/contract.py:202
+    // assert option < session.options_count.as_uint64(), "Unknown option"
+    pushint 24
+    getbyte
+    <
+    assert // Unknown option
+    // dapp/contract.py:204
+    // seat = Txn.sender
+    txn Sender
+    // dapp/contract.py:353-359
+    // # inner calls don't run under algopy-testing; the localnet tests run this
+    // votes, _txn = arc4.abi_call[arc4.UInt64](
+    //     "votes_of(address)uint64",
+    //     arc4.Address(seat),
+    //     app_id=self.permission_app_id,
+    //     fee=0,
+    // )
+    itxn_begin
+    // dapp/contract.py:357
+    // app_id=self.permission_app_id,
+    intc_1 // 0
+    bytec_3 // "permission_app_id"
+    app_global_get_ex
+    assert // check self.permission_app_id exists
+    itxn_field ApplicationID
+    // dapp/contract.py:353-359
+    // # inner calls don't run under algopy-testing; the localnet tests run this
+    // votes, _txn = arc4.abi_call[arc4.UInt64](
+    //     "votes_of(address)uint64",
+    //     arc4.Address(seat),
+    //     app_id=self.permission_app_id,
+    //     fee=0,
+    // )
+    pushbytes 0x127182cd // method "votes_of(address)uint64"
+    itxn_field ApplicationArgs
+    dup
+    itxn_field ApplicationArgs
+    pushint 6 // appl
+    itxn_field TypeEnum
+    // dapp/contract.py:358
+    // fee=0,
+    intc_1 // 0
+    itxn_field Fee
+    // dapp/contract.py:353-359
+    // # inner calls don't run under algopy-testing; the localnet tests run this
+    // votes, _txn = arc4.abi_call[arc4.UInt64](
+    //     "votes_of(address)uint64",
+    //     arc4.Address(seat),
+    //     app_id=self.permission_app_id,
+    //     fee=0,
+    // )
+    itxn_submit
+    itxn LastLog
+    dup
+    extract 0 4
+    bytec 5 // 0x151f7c75
+    ==
+    assert // application log value is not the result of an ABI return
+    extract 4 0
+    dup
+    cover 3
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    // dapp/contract.py:360
+    // return votes.as_uint64()
+    btoi
+    // dapp/contract.py:206
+    // assert max_votes > 0, "Seat has no votes"
+    assert // Seat has no votes
+    // dapp/contract.py:208
+    // key = BallotKey(arc4.UInt64(session_id), arc4.Address(seat))
+    concat
+    dup
+    cover 2
+    // dapp/contract.py:209
+    // if key not in self.ballots:
+    pushbytes 0x76
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    bnz vote_after_if_else@3
+    // dapp/contract.py:210
+    // session.voters_count = arc4.UInt64(session.voters_count.as_uint64() + 1)
+    dig 5
+    dup
+    pushint 116
+    extract_uint64
+    intc_2 // 1
+    +
+    itob
+    replace2 116
+    // dapp/contract.py:211
+    // self.sessions[session_id] = session.copy()
+    dig 7
+    itob
+    bytec_1 // 0x73
+    swap
+    concat
+    swap
+    box_put
+
+vote_after_if_else@3:
+    // dapp/contract.py:213
+    // option=arc4.UInt8(option),
+    uncover 4
+    itob
+    dup
+    bitlen
+    intc_0 // 8
+    <=
+    assert // overflow
+    extract 7 1
+    // dapp/contract.py:212-218
+    // self.ballots[key] = Ballot(
+    //     option=arc4.UInt8(option),
+    //     max_votes=arc4.UInt64(max_votes),
+    //     eligible=arc4.UInt64(0),
+    //     weight=arc4.UInt64(0),
+    //     weighed=arc4.Bool(False),
+    // )
+    dup
+    uncover 3
+    dup
+    cover 3
+    concat
+    uncover 5
+    dup
+    cover 2
+    concat
+    swap
+    concat
+    // dapp/contract.py:217
+    // weighed=arc4.Bool(False),
+    bytec_2 // 0x00
+    // dapp/contract.py:212-218
+    // self.ballots[key] = Ballot(
+    //     option=arc4.UInt8(option),
+    //     max_votes=arc4.UInt64(max_votes),
+    //     eligible=arc4.UInt64(0),
+    //     weight=arc4.UInt64(0),
+    //     weighed=arc4.Bool(False),
+    // )
+    concat
+    uncover 3
+    swap
+    box_put
+    // dapp/contract.py:221-226
+    // Voted(
+    //     arc4.UInt64(session_id),
+    //     arc4.Address(seat),
+    //     arc4.UInt8(option),
+    //     arc4.UInt64(max_votes),
+    // )
+    uncover 2
+    swap
+    concat
+    swap
+    concat
+    // dapp/contract.py:220-227
+    // arc4.emit(
+    //     Voted(
+    //         arc4.UInt64(session_id),
+    //         arc4.Address(seat),
+    //         arc4.UInt8(option),
+    //         arc4.UInt64(max_votes),
+    //     )
+    // )
+    pushbytes 0x61142612 // method "Voted(uint64,address,uint8,uint64)"
+    swap
+    concat
+    log
+    // dapp/contract.py:188-189
+    // # # VOTING
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+
+// dapp.contract.VotingDApp.set_final[routing]() -> void:
+set_final:
+    pushbytes ""
+    dup
+    // dapp/contract.py:229-230
+    // # # RESULT
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dupn 2
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    dup
     txna ApplicationArgs 2
     dup
     cover 2
@@ -395,7 +694,7 @@ set_snapshot:
     assert // invalid number of bytes for arc4.dynamic_array<arc4.static_array<arc4.uint8, 32>>
     txna ApplicationArgs 3
     dup
-    cover 5
+    cover 3
     dup
     intc_1 // 0
     extract_uint16 // on error: invalid array length header
@@ -408,50 +707,56 @@ set_snapshot:
     len
     ==
     assert // invalid number of bytes for arc4.dynamic_array<arc4.uint64>
-    // dapp/contract.py:192
-    // assert Txn.sender == self.admin, "Only admin can write the snapshot"
+    // dapp/contract.py:245
+    // assert Txn.sender == self.admin, "Only admin can write final amounts"
     txn Sender
     intc_1 // 0
     bytec_0 // "admin"
     app_global_get_ex
     assert // check self.admin exists
     ==
-    assert // Only admin can write the snapshot
-    // dapp/contract.py:193
+    assert // Only admin can write final amounts
+    // dapp/contract.py:246
     // session = self._session(session_id)
     uncover 2
     callsub _session
-    // dapp/contract.py:194
-    // assert session.status == STATUS_SNAPSHOT_OPEN, "Snapshot is sealed"
-    extract 113 1
-    intc_1 // 0
-    itob
+    dup
     cover 3
-    pushbytes 0x00
+    // dapp/contract.py:247
+    // assert session.status == STATUS_OPEN, "Final amounts are sealed"
+    dup
+    extract 114 1
+    bytec_2 // 0x00
     b==
-    assert // Snapshot is sealed
-    // dapp/contract.py:195
+    assert // Final amounts are sealed
+    // dapp/contract.py:248
+    // assert Global.round > session.end_round, "Voting has not ended"
+    extract 8 8
+    global Round
+    itob
+    b<
+    assert // Voting has not ended
+    // dapp/contract.py:249
     // assert seats.length == amounts.length, "Seats and amounts differ in length"
     ==
     assert // Seats and amounts differ in length
-    // dapp/contract.py:197
+    // dapp/contract.py:251
     // for index in urange(seats.length):
     intc_1 // 0
-
-set_snapshot_for_header@2:
-    // dapp/contract.py:197
-    // for index in urange(seats.length):
-    dup
-    dig 3
-    <
-    bz set_snapshot_after_for@10
-    // dapp/contract.py:198
-    // key = BallotKey(arc4.UInt64(session_id), seats[index])
-    dig 3
-    extract 2 0
-    dig 1
-    dup
     cover 2
+
+set_final_for_header@2:
+    // dapp/contract.py:251
+    // for index in urange(seats.length):
+    dig 2
+    dig 4
+    <
+    bz set_final_after_for@10
+    // dapp/contract.py:252
+    // key = BallotKey(arc4.UInt64(session_id), seats[index])
+    dig 4
+    extract 2 0
+    dig 3
     intc_3 // 32
     *
     intc_3 // 32
@@ -459,88 +764,173 @@ set_snapshot_for_header@2:
     dig 7
     swap
     concat
+    // dapp/contract.py:253
+    // assert key in self.ballots, "Seat has not voted"
+    pushbytes 0x76
+    swap
+    concat
+    dup
+    cover 8
+    dup
+    box_len
+    bury 1
+    assert // Seat has not voted
+    // dapp/contract.py:254
+    // ballot = self.ballots[key].copy()
+    box_get
+    pop
+    dup
     cover 2
-    // dapp/contract.py:199
-    // if amounts[index] == 0:
-    dig 6
-    extract 2 0
+    // dapp/contract.py:255
+    // option = ballot.option.as_uint64()
+    dup
+    intc_1 // 0
+    getbyte
+    // dapp/contract.py:256
+    // total = session.totals[option].as_uint64()
+    dig 2
+    extract 132 64
     swap
     intc_0 // 8
     *
+    dup
+    cover 7
+    extract_uint64
+    swap
+    // dapp/contract.py:257
+    // if ballot.weighed.native:
+    pushint 200
+    getbit
+    bytec_2 // 0x00
+    intc_1 // 0
+    uncover 2
+    setbit
+    intc_1 // 0
+    getbit
+    bz set_final_else_body@5
+    // dapp/contract.py:258
+    // total -= ballot.weight.as_uint64()
+    dig 2
+    pushint 17
+    extract_uint64
+    -
+
+set_final_after_if_else@6:
+    // dapp/contract.py:264
+    // weight = ballot.max_votes.as_uint64() * MICRO
+    dig 2
+    intc_2 // 1
+    extract_uint64
+    pushint 1000000
+    *
+    dup
+    bury 14
+    // dapp/contract.py:265
+    // if amounts[index].as_uint64() < weight:
+    dig 4
+    extract 2 0
+    dig 6
+    intc_0 // 8
+    *
+    dup2
     intc_0 // 8
     extract3 // on error: index access is out of bounds
+    cover 12
+    extract_uint64
     dup
-    dig 4
-    b==
-    bz set_snapshot_else_body@7
-    pop
-    // dapp/contract.py:200
-    // if key in self.ballots:
-    bytec 4 // 0x76
-    uncover 2
-    concat
-    dup
-    bury 8
-    box_len
-    bury 1
-    bz set_snapshot_after_if_else@8
-    // dapp/contract.py:201
-    // del self.ballots[key]
-    dig 6
-    box_del
-    pop
+    bury 15
+    >
+    bz set_final_after_if_else@8
+    dig 12
+    bury 14
 
-set_snapshot_after_if_else@8:
-    // dapp/contract.py:197
-    // for index in urange(seats.length):
-    intc_2 // 1
-    +
-    b set_snapshot_for_header@2
-
-set_snapshot_else_body@7:
-    // dapp/contract.py:205
-    // option=arc4.UInt8(NOT_VOTED),
-    pushbytes 0xff
-    // dapp/contract.py:203-208
-    // self.ballots[key] = Ballot(
-    //     eligible=amounts[index],
-    //     option=arc4.UInt8(NOT_VOTED),
-    //     max_votes=arc4.UInt64(0),
-    //     weight=arc4.UInt64(0),
-    // )
-    concat
-    dig 3
+set_final_after_if_else@8:
+    // dapp/contract.py:267
+    // session.totals[option] = arc4.UInt64(total + weight)
+    dig 13
     dup
     cover 2
-    concat
+    +
+    itob
+    uncover 2
+    dup
+    cover 2
+    extract 132 64
+    uncover 7
+    uncover 2
+    replace3 // on error: index access is out of bounds
+    replace2 132
     swap
-    concat
-    // dapp/contract.py:203
-    // self.ballots[key] = Ballot(
-    bytec 4 // 0x76
-    uncover 3
-    concat
-    // dapp/contract.py:203-208
-    // self.ballots[key] = Ballot(
-    //     eligible=amounts[index],
-    //     option=arc4.UInt8(NOT_VOTED),
-    //     max_votes=arc4.UInt64(0),
-    //     weight=arc4.UInt64(0),
-    // )
+    // dapp/contract.py:269
+    // ballot.eligible = amounts[index]
+    uncover 2
+    uncover 8
+    replace2 9
+    // dapp/contract.py:270
+    // ballot.weight = arc4.UInt64(weight)
+    swap
+    itob
+    replace2 17
+    // dapp/contract.py:271
+    // ballot.weighed = arc4.Bool(True)
+    pushint 200
+    intc_2 // 1
+    setbit
+    // dapp/contract.py:272
+    // self.ballots[key] = ballot.copy()
+    uncover 8
     swap
     box_put
-    b set_snapshot_after_if_else@8
+    // dapp/contract.py:251
+    // for index in urange(seats.length):
+    uncover 2
+    intc_2 // 1
+    +
+    cover 2
+    b set_final_for_header@2
 
-set_snapshot_after_for@10:
-    // dapp/contract.py:177
+set_final_else_body@5:
+    // dapp/contract.py:261
+    // session.weighed_count.as_uint64() + 1
+    swap
+    dup
+    pushint 124
+    extract_uint64
+    intc_2 // 1
+    +
+    // dapp/contract.py:260-262
+    // session.weighed_count = arc4.UInt64(
+    //     session.weighed_count.as_uint64() + 1
+    // )
+    itob
+    replace2 124
+    swap
+    b set_final_after_if_else@6
+
+set_final_after_for@10:
+    bury 1
+    bury 1
+    bury 1
+    bury 1
+    // dapp/contract.py:274
+    // self.sessions[session_id] = session.copy()
+    swap
+    itob
+    bytec_1 // 0x73
+    swap
+    concat
+    swap
+    box_put
+    // dapp/contract.py:229-230
+    // # # RESULT
     // @arc4.abimethod
     intc_2 // 1
     return
 
 
-// dapp.contract.VotingDApp.seal_snapshot[routing]() -> void:
-seal_snapshot:
-    // dapp/contract.py:210
+// dapp.contract.VotingDApp.seal_final[routing]() -> void:
+seal_final:
+    // dapp/contract.py:276
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
@@ -555,51 +945,55 @@ seal_snapshot:
     intc_3 // 32
     ==
     assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
-    // dapp/contract.py:219
-    // assert Txn.sender == self.admin, "Only admin can seal the snapshot"
+    // dapp/contract.py:285
+    // assert Txn.sender == self.admin, "Only admin can seal final amounts"
     txn Sender
     intc_1 // 0
     bytec_0 // "admin"
     app_global_get_ex
     assert // check self.admin exists
     ==
-    assert // Only admin can seal the snapshot
-    // dapp/contract.py:220
+    assert // Only admin can seal final amounts
+    // dapp/contract.py:286
     // session = self._session(session_id)
     dig 1
     callsub _session
-    // dapp/contract.py:221
-    // assert session.status == STATUS_SNAPSHOT_OPEN, "Snapshot is sealed"
+    // dapp/contract.py:287
+    // assert session.status == STATUS_OPEN, "Final amounts are sealed"
     dup
-    extract 113 1
-    pushbytes 0x00
+    extract 114 1
+    bytec_2 // 0x00
     b==
-    assert // Snapshot is sealed
-    // dapp/contract.py:222
-    // assert Global.round >= session.snapshot_round, "Snapshot round not reached"
+    assert // Final amounts are sealed
+    // dapp/contract.py:288
+    // assert Global.round >= session.seal_round, "Seal round not reached"
     dup
-    extract 0 8
+    extract 16 8
     global Round
     itob
     b<=
-    assert // Snapshot round not reached
-    // dapp/contract.py:223
-    // assert Global.round < session.start_round, "Session start has passed"
+    assert // Seal round not reached
+    // dapp/contract.py:290
+    // session.weighed_count == session.voters_count
     dup
-    extract 40 8
-    global Round
-    itob
-    b>
-    assert // Session start has passed
-    // dapp/contract.py:225
-    // session.snapshot_hash = snapshot_hash.copy()
+    extract 124 8
+    dig 1
+    extract 116 8
+    b==
+    // dapp/contract.py:289-291
+    // assert (
+    //     session.weighed_count == session.voters_count
+    // ), "Every voter needs a final amount"
+    assert // Every voter needs a final amount
+    // dapp/contract.py:293
+    // session.final_hash = final_hash.copy()
     swap
-    replace2 8
-    // dapp/contract.py:226
+    replace2 82
+    // dapp/contract.py:294
     // session.status = arc4.UInt8(STATUS_SEALED)
-    bytec 5 // 0x01
-    replace2 113
-    // dapp/contract.py:227
+    pushbytes 0x01
+    replace2 114
+    // dapp/contract.py:295
     // self.sessions[session_id] = session.copy()
     swap
     itob
@@ -608,330 +1002,17 @@ seal_snapshot:
     concat
     swap
     box_put
-    // dapp/contract.py:210
+    // dapp/contract.py:276
     // @arc4.abimethod
     intc_2 // 1
     return
-
-
-// dapp.contract.VotingDApp.vote[routing]() -> void:
-vote:
-    // dapp/contract.py:229-230
-    // # # VOTING
-    // @arc4.abimethod
-    txna ApplicationArgs 1
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    dup
-    btoi
-    dup
-    cover 2
-    txna ApplicationArgs 2
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    btoi
-    dup
-    cover 2
-    cover 3
-    // dapp/contract.py:239
-    // session = self._session(session_id)
-    callsub _session
-    dup
-    cover 3
-    // dapp/contract.py:240
-    // assert session.status == STATUS_SEALED, "Session is not open for voting"
-    dup
-    extract 113 1
-    bytec 5 // 0x01
-    b==
-    assert // Session is not open for voting
-    // dapp/contract.py:241
-    // assert Global.round >= session.start_round, "Voting has not started"
-    dup
-    extract 40 8
-    global Round
-    itob
-    b<=
-    assert // Voting has not started
-    // dapp/contract.py:242
-    // assert Global.round <= session.end_round, "Voting has ended"
-    dup
-    extract 48 8
-    global Round
-    itob
-    b>=
-    assert // Voting has ended
-    // dapp/contract.py:243
-    // assert option < session.options_count.as_uint64(), "Unknown option"
-    pushint 56
-    getbyte
-    <
-    assert // Unknown option
-    // dapp/contract.py:245
-    // seat = Txn.sender
-    txn Sender
-    // dapp/contract.py:334-335
-    // # the only place that knows where a seat's eligible amount comes from
-    // key = BallotKey(arc4.UInt64(session_id), arc4.Address(seat))
-    swap
-    dig 1
-    concat
-    dup
-    cover 3
-    // dapp/contract.py:336
-    // assert key in self.ballots, "Seat is not in the snapshot"
-    bytec 4 // 0x76
-    swap
-    concat
-    dup
-    cover 3
-    dup
-    box_len
-    bury 1
-    assert // Seat is not in the snapshot
-    // dapp/contract.py:337
-    // return self.ballots[key].eligible.as_uint64()
-    box_get
-    pop
-    intc_1 // 0
-    extract_uint64
-    dup
-    cover 2
-    cover 4
-    // dapp/contract.py:341-347
-    // # inner calls don't run under algopy-testing; the localnet tests run this
-    // votes, _txn = arc4.abi_call[arc4.UInt64](
-    //     "votes_of(address)uint64",
-    //     arc4.Address(seat),
-    //     app_id=self.permission_app_id,
-    //     fee=0,
-    // )
-    itxn_begin
-    // dapp/contract.py:345
-    // app_id=self.permission_app_id,
-    intc_1 // 0
-    bytec_2 // "permission_app_id"
-    app_global_get_ex
-    assert // check self.permission_app_id exists
-    itxn_field ApplicationID
-    // dapp/contract.py:341-347
-    // # inner calls don't run under algopy-testing; the localnet tests run this
-    // votes, _txn = arc4.abi_call[arc4.UInt64](
-    //     "votes_of(address)uint64",
-    //     arc4.Address(seat),
-    //     app_id=self.permission_app_id,
-    //     fee=0,
-    // )
-    pushbytes 0x127182cd // method "votes_of(address)uint64"
-    itxn_field ApplicationArgs
-    itxn_field ApplicationArgs
-    pushint 6 // appl
-    itxn_field TypeEnum
-    // dapp/contract.py:346
-    // fee=0,
-    intc_1 // 0
-    itxn_field Fee
-    // dapp/contract.py:341-347
-    // # inner calls don't run under algopy-testing; the localnet tests run this
-    // votes, _txn = arc4.abi_call[arc4.UInt64](
-    //     "votes_of(address)uint64",
-    //     arc4.Address(seat),
-    //     app_id=self.permission_app_id,
-    //     fee=0,
-    // )
-    itxn_submit
-    itxn LastLog
-    dup
-    extract 0 4
-    bytec 6 // 0x151f7c75
-    ==
-    assert // application log value is not the result of an ABI return
-    extract 4 0
-    dup
-    cover 4
-    dup
-    len
-    intc_0 // 8
-    ==
-    assert // invalid number of bytes for arc4.uint64
-    // dapp/contract.py:348
-    // return votes.as_uint64()
-    btoi
-    // dapp/contract.py:248
-    // assert max_votes > 0, "Seat has no votes"
-    dup
-    assert // Seat has no votes
-    // dapp/contract.py:249
-    // weight = max_votes * MICRO
-    pushint 1000000
-    *
-    dup
-    cover 4
-    // dapp/contract.py:250
-    // if eligible < weight:
-    <
-    bz vote_after_if_else@3
-    dig 4
-    bury 3
-
-vote_after_if_else@3:
-    // dapp/contract.py:254
-    // ballot = self.ballots[key].copy()
-    dig 1
-    box_get
-    swap
-    dup
-    cover 2
-    cover 3
-    assert // check self.ballots entry exists
-    // dapp/contract.py:255
-    // previous = ballot.option.as_uint64()
-    intc_0 // 8
-    getbyte
-    dup
-    // dapp/contract.py:256
-    // if previous == NOT_VOTED:
-    intc 4 // 255
-    ==
-    bz vote_else_body@5
-    pop
-    // dapp/contract.py:257
-    // session.voters_count = arc4.UInt64(session.voters_count.as_uint64() + 1)
-    dup
-    pushint 115
-    extract_uint64
-    intc_2 // 1
-    +
-    itob
-    replace2 115
-
-vote_after_if_else@6:
-    // dapp/contract.py:263
-    // session.totals[option].as_uint64() + weight
-    dup
-    extract 123 64
-    dig 8
-    dup
-    cover 3
-    intc_0 // 8
-    *
-    dup2
-    extract_uint64
-    dig 7
-    dup
-    cover 6
-    +
-    // dapp/contract.py:262-264
-    // session.totals[option] = arc4.UInt64(
-    //     session.totals[option].as_uint64() + weight
-    // )
-    itob
-    replace3 // on error: index access is out of bounds
-    replace2 123
-    // dapp/contract.py:265
-    // self.sessions[session_id] = session.copy()
-    dig 10
-    itob
-    bytec_1 // 0x73
-    swap
-    concat
-    swap
-    box_put
-    // dapp/contract.py:267
-    // ballot.option = arc4.UInt8(option)
-    itob
-    dup
-    bitlen
-    intc_0 // 8
-    <=
-    assert // overflow
-    extract 7 1
-    uncover 2
-    dig 1
-    replace2 8
-    // dapp/contract.py:268
-    // ballot.max_votes = arc4.UInt64(max_votes)
-    dig 5
-    replace2 9
-    // dapp/contract.py:269
-    // ballot.weight = arc4.UInt64(weight)
-    uncover 2
-    itob
-    swap
-    dig 1
-    replace2 17
-    // dapp/contract.py:270
-    // self.ballots[key] = ballot.copy()
-    uncover 3
-    swap
-    box_put
-    // dapp/contract.py:273-278
-    // Voted(
-    //     arc4.UInt64(session_id),
-    //     arc4.Address(seat),
-    //     arc4.UInt8(option),
-    //     arc4.UInt64(weight),
-    // )
-    dig 5
-    uncover 2
-    concat
-    swap
-    concat
-    // dapp/contract.py:272-279
-    // arc4.emit(
-    //     Voted(
-    //         arc4.UInt64(session_id),
-    //         arc4.Address(seat),
-    //         arc4.UInt8(option),
-    //         arc4.UInt64(weight),
-    //     )
-    // )
-    pushbytes 0x61142612 // method "Voted(uint64,address,uint8,uint64)"
-    swap
-    concat
-    log
-    // dapp/contract.py:229-230
-    // # # VOTING
-    // @arc4.abimethod
-    intc_2 // 1
-    return
-
-vote_else_body@5:
-    // dapp/contract.py:260
-    // session.totals[previous].as_uint64() - ballot.weight.as_uint64()
-    swap
-    dup
-    extract 123 64
-    uncover 2
-    intc_0 // 8
-    *
-    dup2
-    extract_uint64
-    dig 4
-    pushint 17
-    extract_uint64
-    -
-    // dapp/contract.py:259-261
-    // session.totals[previous] = arc4.UInt64(
-    //     session.totals[previous].as_uint64() - ballot.weight.as_uint64()
-    // )
-    itob
-    replace3 // on error: index access is out of bounds
-    replace2 123
-    b vote_after_if_else@6
 
 
 // dapp.contract.VotingDApp.finalize[routing]() -> void:
 finalize:
     pushbytes ""
     dup
-    // dapp/contract.py:281
+    // dapp/contract.py:297
     // @arc4.abimethod
     txna ApplicationArgs 1
     dupn 2
@@ -941,132 +1022,150 @@ finalize:
     assert // invalid number of bytes for arc4.uint64
     btoi
     dup
-    // dapp/contract.py:289
+    // dapp/contract.py:305
     // session = self._session(session_id)
     callsub _session
     dupn 2
-    // dapp/contract.py:290
-    // assert session.status == STATUS_SEALED, "Session is not open for voting"
-    extract 113 1
-    bytec 5 // 0x01
+    // dapp/contract.py:306
+    // assert session.status == STATUS_SEALED, "Final amounts are not sealed"
+    extract 114 1
+    pushbytes 0x01
     b==
-    assert // Session is not open for voting
-    // dapp/contract.py:291
-    // assert Global.round > session.end_round, "Voting has not ended"
+    assert // Final amounts are not sealed
+    // dapp/contract.py:308
+    // abstain = session.abstain.as_uint64()
     dup
-    extract 48 8
-    global Round
-    itob
-    b<
-    assert // Voting has not ended
-    // dapp/contract.py:293
+    pushint 25
+    getbyte
+    cover 2
+    // dapp/contract.py:309
     // turnout = UInt64(0)
     intc_1 // 0
     cover 2
-    // dapp/contract.py:294
+    // dapp/contract.py:310
+    // decisive = UInt64(0)
+    intc_1 // 0
+    cover 6
+    // dapp/contract.py:311
     // winner = UInt64(NOT_VOTED)
     intc 4 // 255
-    cover 5
-    // dapp/contract.py:295
+    cover 6
+    // dapp/contract.py:312
     // winner_total = UInt64(0)
     intc_1 // 0
-    cover 5
-    // dapp/contract.py:296
+    cover 6
+    // dapp/contract.py:313
     // for index in urange(session.options_count.as_uint64()):
-    pushint 56
+    pushint 24
     getbyte
     intc_1 // 0
 
 finalize_for_header@2:
-    // dapp/contract.py:296
+    // dapp/contract.py:313
     // for index in urange(session.options_count.as_uint64()):
     dup
     dig 2
     <
-    bz finalize_after_for@7
-    // dapp/contract.py:297
+    bz finalize_after_for@9
+    // dapp/contract.py:314
     // total = session.totals[index].as_uint64()
     dig 2
-    extract 123 64
+    extract 132 64
     dig 1
+    dup
+    cover 2
     intc_0 // 8
     *
     extract_uint64
     dup
-    bury 10
-    // dapp/contract.py:298
+    bury 13
+    // dapp/contract.py:315
     // turnout += total
-    uncover 4
-    dig 1
+    uncover 5
     +
     cover 4
-    // dapp/contract.py:299
-    // if total > winner_total:
-    dig 7
-    >
-    bz finalize_after_if_else@5
+    // dapp/contract.py:316
+    // if index != abstain:
+    dig 5
+    !=
+    bz finalize_after_if_else@7
+    // dapp/contract.py:317
+    // decisive += total
+    dig 9
+    dig 11
     dup
-    bury 8
+    cover 2
+    +
+    bury 11
+    // dapp/contract.py:318
+    // if total > winner_total:
     dig 8
-    bury 7
+    >
+    bz finalize_after_if_else@7
+    dup
+    bury 9
+    dig 10
+    bury 8
 
-finalize_after_if_else@5:
-    // dapp/contract.py:296
+finalize_after_if_else@7:
+    // dapp/contract.py:313
     // for index in urange(session.options_count.as_uint64()):
     intc_2 // 1
     +
     b finalize_for_header@2
 
-finalize_after_for@7:
+finalize_after_for@9:
     popn 2
-    // dapp/contract.py:303
+    uncover 2
+    pop
+    // dapp/contract.py:322
     // status = UInt64(STATUS_FAILED)
     pushint 3
-    bury 8
-    // dapp/contract.py:305
+    bury 9
+    // dapp/contract.py:324
     // turnout >= session.quorum.as_uint64()
     dup
-    pushint 57
+    pushint 26
     extract_uint64
     dig 2
     <=
-    // dapp/contract.py:305-307
+    // dapp/contract.py:324-326
     // turnout >= session.quorum.as_uint64()
     // and winner_total * session.threshold_den.as_uint64()
-    // > turnout * session.threshold_num.as_uint64()
-    bz finalize_else_body@10
-    // dapp/contract.py:306
+    // > decisive * session.threshold_num.as_uint64()
+    bz finalize_else_body@12
+    // dapp/contract.py:325
     // and winner_total * session.threshold_den.as_uint64()
     dupn 2
-    pushint 73
+    pushint 42
     extract_uint64
     dig 6
     *
-    // dapp/contract.py:307
-    // > turnout * session.threshold_num.as_uint64()
+    // dapp/contract.py:326
+    // > decisive * session.threshold_num.as_uint64()
     swap
-    pushint 65
+    pushint 34
     extract_uint64
-    dig 3
+    dig 8
     *
-    // dapp/contract.py:306-307
+    // dapp/contract.py:325-326
     // and winner_total * session.threshold_den.as_uint64()
-    // > turnout * session.threshold_num.as_uint64()
+    // > decisive * session.threshold_num.as_uint64()
     >
-    // dapp/contract.py:305-307
+    // dapp/contract.py:324-326
     // turnout >= session.quorum.as_uint64()
     // and winner_total * session.threshold_den.as_uint64()
-    // > turnout * session.threshold_num.as_uint64()
-    bz finalize_else_body@10
-    // dapp/contract.py:309
+    // > decisive * session.threshold_num.as_uint64()
+    bz finalize_else_body@12
+    // dapp/contract.py:328
     // status = UInt64(STATUS_PASSED)
     pushint 2
-    bury 8
+    bury 9
 
-finalize_after_if_else@11:
-    // dapp/contract.py:313
+finalize_after_if_else@13:
+    // dapp/contract.py:332
     // session.status = arc4.UInt8(status)
-    dig 7
+    dig 8
     itob
     dup
     bitlen
@@ -1076,8 +1175,8 @@ finalize_after_if_else@11:
     extract 7 1
     swap
     dig 1
-    replace2 113
-    // dapp/contract.py:314
+    replace2 114
+    // dapp/contract.py:333
     // session.winner = arc4.UInt8(winner)
     dig 6
     itob
@@ -1089,8 +1188,8 @@ finalize_after_if_else@11:
     extract 7 1
     swap
     dig 1
-    replace2 114
-    // dapp/contract.py:315
+    replace2 115
+    // dapp/contract.py:334
     // self.sessions[session_id] = session.copy()
     uncover 4
     itob
@@ -1099,11 +1198,11 @@ finalize_after_if_else@11:
     concat
     swap
     box_put
-    // dapp/contract.py:322
+    // dapp/contract.py:341
     // arc4.UInt64(turnout),
     uncover 2
     itob
-    // dapp/contract.py:318-323
+    // dapp/contract.py:337-342
     // Finalized(
     //     arc4.UInt64(session_id),
     //     arc4.UInt8(status),
@@ -1117,7 +1216,7 @@ finalize_after_if_else@11:
     concat
     swap
     concat
-    // dapp/contract.py:317-324
+    // dapp/contract.py:336-343
     // arc4.emit(
     //     Finalized(
     //         arc4.UInt64(session_id),
@@ -1130,27 +1229,27 @@ finalize_after_if_else@11:
     swap
     concat
     log
-    // dapp/contract.py:281
+    // dapp/contract.py:297
     // @arc4.abimethod
     intc_2 // 1
     return
 
-finalize_else_body@10:
-    // dapp/contract.py:311
+finalize_else_body@12:
+    // dapp/contract.py:330
     // winner = UInt64(NOT_VOTED)
     intc 4 // 255
     bury 6
-    b finalize_after_if_else@11
+    b finalize_after_if_else@13
 
 
 // dapp.contract.VotingDApp._session(session_id: uint64) -> bytes:
 _session:
-    // dapp/contract.py:326-328
+    // dapp/contract.py:345-347
     // # # SUBROUTINES
     // @subroutine
     // def _session(self, session_id: UInt64) -> Session:
     proto 1 1
-    // dapp/contract.py:329
+    // dapp/contract.py:348
     // assert session_id in self.sessions, "Session does not exist"
     frame_dig -1
     itob
@@ -1161,7 +1260,7 @@ _session:
     box_len
     bury 1
     assert // Session does not exist
-    // dapp/contract.py:330
+    // dapp/contract.py:349
     // return self.sessions[session_id]
     box_get
     pop

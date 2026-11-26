@@ -5,9 +5,9 @@ import base64
 from algosdk import transaction
 from algosdk.atomic_transaction_composer import AtomicTransactionComposer
 from algosdk.encoding import decode_address, encode_address
-from algosdk.error import AlgodHTTPError
+from algosdk.error import AlgodHTTPError, IndexerHTTPError
 
-from .configuration import SNAPSHOT_SEATS_PER_CALL
+from .configuration import FINAL_SEATS_PER_CALL, NOT_VOTED
 from .helpers import (
     app_schemas,
     ballot_box_name,
@@ -97,11 +97,12 @@ def create_session(
     client,
     app_id,
     parameters,
-    snapshot_round,
     start_round,
     end_round,
+    seal_round,
     proposal_hash,
     options_count=3,
+    abstain=NOT_VOTED,
     quorum=0,
     threshold=(1, 2),
 ):
@@ -113,16 +114,18 @@ def create_session(
     :type app_id: int
     :param parameters: sender, signer and ABI contract of the admin
     :type parameters: dict
-    :param snapshot_round: round every seat's ASASTATS are measured at
-    :type snapshot_round: int
     :param start_round: first round a vote is accepted in
     :type start_round: int
     :param end_round: last round a vote is accepted in
     :type end_round: int
+    :param seal_round: first round the final amounts can be sealed in
+    :type seal_round: int
     :param proposal_hash: sha256 of the proposal text
     :type proposal_hash: bytes
     :param options_count: number of options to vote for
     :type options_count: int
+    :param abstain: index of the Abstain option, NOT_VOTED for none
+    :type abstain: int
     :param quorum: minimum turnout in micro-votes
     :type quorum: int
     :param threshold: numerator and denominator of the share the winner must exceed
@@ -136,10 +139,11 @@ def create_session(
         parameters,
         "create_session",
         [
-            snapshot_round,
             start_round,
             end_round,
+            seal_round,
             options_count,
+            abstain,
             quorum,
             threshold[0],
             threshold[1],
@@ -171,8 +175,8 @@ def finalize(client, app_id, parameters, session_id):
     )
 
 
-def seal_snapshot(client, app_id, parameters, session_id, snapshot_hash):
-    """Seal the snapshot of the session defined by `session_id`.
+def seal_final(client, app_id, parameters, session_id, final_hash):
+    """Seal the final amounts of the session defined by `session_id`.
 
     :param client: Algorand Node client instance
     :type client: :class:`AlgodClient`
@@ -182,21 +186,21 @@ def seal_snapshot(client, app_id, parameters, session_id, snapshot_hash):
     :type parameters: dict
     :param session_id: voting session identifier
     :type session_id: int
-    :param snapshot_hash: sha256 of the published snapshot file
-    :type snapshot_hash: bytes
+    :param final_hash: sha256 of the published final file
+    :type final_hash: bytes
     """
     _call(
         client,
         app_id,
         parameters,
-        "seal_snapshot",
-        [session_id, snapshot_hash],
+        "seal_final",
+        [session_id, final_hash],
         boxes=[session_box_name(session_id)],
     )
 
 
-def set_snapshot(client, app_id, parameters, session_id, amounts):
-    """Write the eligible amounts of seats to the session's ballot boxes.
+def set_final(client, app_id, parameters, session_id, amounts):
+    """Write the lowest amounts voters held while voting to their ballot boxes.
 
     :param client: Algorand Node client instance
     :type client: :class:`AlgodClient`
@@ -206,19 +210,19 @@ def set_snapshot(client, app_id, parameters, session_id, amounts):
     :type parameters: dict
     :param session_id: voting session identifier
     :type session_id: int
-    :param amounts: seat addresses and their eligible micro-ASASTATS; 0 removes
+    :param amounts: voters' seat addresses and their lowest micro-ASASTATS
     :type amounts: dict
     :var seats: seat addresses written by the current call
     :type seats: list
     """
     addresses = list(amounts)
-    for start in range(0, len(addresses), SNAPSHOT_SEATS_PER_CALL):
-        seats = addresses[start : start + SNAPSHOT_SEATS_PER_CALL]
+    for start in range(0, len(addresses), FINAL_SEATS_PER_CALL):
+        seats = addresses[start : start + FINAL_SEATS_PER_CALL]
         _call(
             client,
             app_id,
             parameters,
-            "set_snapshot",
+            "set_final",
             [session_id, seats, [amounts[seat] for seat in seats]],
             boxes=[session_box_name(session_id)]
             + [ballot_box_name(session_id, seat) for seat in seats],
@@ -363,3 +367,74 @@ def permission_votes(client, permission_id, address):
 
     # as `votes_of`: the first 12 base64 characters hold 9 bytes, `votes` is 8 of them
     return int.from_bytes(base64.b64decode(value[:12])[:8], "big")
+
+
+# # HOLDINGS ROUNDS
+def block_timestamp(indexer, block):
+    """Return the timestamp of `block`.
+
+    :param indexer: Algorand Indexer client instance
+    :type indexer: :class:`IndexerClient`
+    :param block: round number
+    :type block: int
+    :return: int
+    """
+    return indexer.block_info(block)["timestamp"]
+
+
+def round_at_timestamp(indexer, timestamp, latest_round):
+    """Return the last round up to `latest_round` whose block is not after `timestamp`.
+
+    :param indexer: Algorand Indexer client instance
+    :type indexer: :class:`IndexerClient`
+    :param timestamp: block timestamp
+    :type timestamp: int
+    :param latest_round: highest round to consider
+    :type latest_round: int
+    :var low: a round whose block is not after `timestamp`
+    :type low: int
+    :return: int
+    """
+    if block_timestamp(indexer, latest_round) <= timestamp:
+        return latest_round
+
+    low, high = 1, latest_round - 1
+    while low < high:
+        middle = (low + high + 1) // 2
+        if block_timestamp(indexer, middle) <= timestamp:
+            low = middle
+        else:
+            high = middle - 1
+    return low
+
+
+def holdings_rounds(session, voting_indexer, holdings_indexer, latest_round, same):
+    """Return the holdings network's rounds matching the session's start and end.
+
+    The end is None while the session's end round isn't confirmed yet.
+
+    :param session: decoded session box
+    :type session: dict
+    :param voting_indexer: indexer of the network the session runs on
+    :type voting_indexer: :class:`IndexerClient`
+    :param holdings_indexer: indexer of the network holding the ASASTATS
+    :type holdings_indexer: :class:`IndexerClient`
+    :param latest_round: latest round of the holdings network
+    :type latest_round: int
+    :param same: True when the session runs on the holdings network itself
+    :type same: bool
+    :return: two-tuple
+    """
+    rounds = []
+    for block in (session["start_round"], session["end_round"]):
+        try:
+            timestamp = block_timestamp(voting_indexer, block)
+        except IndexerHTTPError:  # not confirmed yet
+            rounds.append(None)
+            continue
+        rounds.append(
+            block
+            if same
+            else round_at_timestamp(holdings_indexer, timestamp, latest_round)
+        )
+    return tuple(rounds)

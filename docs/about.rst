@@ -49,11 +49,12 @@ A governor's weight in a session, in micro-units, is the lower of two values:
 
 * the seat's votes multiplied by 10⁶, read from the
   `Permission dApp <https://github.com/asastats/permission-dapp>`_ by calling its
-  `votes_of` method at the moment of voting
-* the seat's eligible ASASTATS at the session's snapshot round, measured off-chain
-  and written to the session by the admin before the voting opens
+  `votes_of` method when the seat votes
+* the lowest ASASTATS the seat held from the start round to the end round, measured
+  off-chain after the end and written to the session by the admin
 
-A wrong snapshot number can therefore never give a seat more than its allocation.
+Abstain, when the session has one, counts toward the turnout and the quorum but can't
+win and isn't part of the total the winner must beat.
 
 
 Voting session
@@ -65,53 +66,58 @@ Voting session
    * - Step
      - Method
      - Who
-   * - Create the session: rounds, options, quorum, threshold, proposal hash
+   * - Create the session: rounds, options, Abstain, quorum, threshold, proposal hash
      - `create_session`
-     - admin
-   * - Write the snapshot, and correct it during the review period
-     - `set_snapshot`
-     - admin
-   * - Seal it with the hash of the published snapshot file
-     - `seal_snapshot`
      - admin
    * - Vote, or change the vote, from the start round to the end round
      - `vote`
-     - every seat in the snapshot
-   * - Record the result after the end round
+     - any seat with votes
+   * - After the end round: write each voter's lowest amount, correct it during the review
+     - `set_final`
+     - admin
+   * - From the seal round: seal with the hash of the published final file
+     - `seal_final`
+     - admin
+   * - Record the result
      - `finalize`
      - anyone
 
-A session passes when the turnout reaches the quorum and the leading option has
-more than `threshold_num / threshold_den` of the turnout.
+A session passes when the turnout reaches the quorum and the leading option other than
+Abstain has more than `threshold_num / threshold_den` of the turnout without Abstain.
 
 
 Boxes and events
 ^^^^^^^^^^^^^^^^
 
 The session box is named by `s` followed by the session identifier (8 bytes) and
-holds 187 bytes. A ballot box is named by `v` followed by the session identifier
-and the seat's public key (32 bytes) and holds 25 bytes. The fields are those of
-:class:`dapp.contract.Session` and :class:`dapp.contract.Ballot`.
+holds 196 bytes. A ballot box is named by `v` followed by the session identifier
+and the seat's public key (32 bytes), holds 26 bytes and is created by the seat's
+first vote. The fields are those of :class:`dapp.contract.Session` and
+:class:`dapp.contract.Ballot`.
 
 Every vote logs a `Voted` event and `finalize` logs a `Finalized` event (ARC-28).
 
 
-Snapshot file
-^^^^^^^^^^^^^
+Final file
+^^^^^^^^^^
 
 .. code-block:: json
 
     {
-      "snapshot_round": 55000000,
+      "start_round": 55000000,
+      "end_round": 55210000,
       "asset_id": 393537671,
       "seats": {
         "<seat address>": {
+          "start_total": 1600000,
           "total": 1500000,
+          "minimum_round": 55100000,
           "venues": {"wallet": 1000000, "<pool>": 500000}
         }
       }
     }
 
-Amounts are micro-ASASTATS. The scripts read `snapshot_round` and each seat's
-`total`; the venue lines are there for the governors to check. The sha256 of the
-file as published goes on-chain at the seal.
+Amounts are micro-ASASTATS. The scripts read the two rounds and each seat's `total`,
+the lowest amount; the rest is there for the governors to check. The rounds are
+mainnet rounds: for a testnet session, those at the session's start and end times.
+The sha256 of the file as published goes on-chain at the seal.

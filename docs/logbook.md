@@ -204,3 +204,60 @@ ballot boxes was used) agreed in events, weights, totals and result; the only
 problem was the rebuilt file's hash, as expected. Session 2 is unsealed with its
 start round passed; the tally said "Voting runs from …", so a "Lapsed" note was
 added for that case (the website's "lapsed" phase).
+
+---
+
+## dapp/contract.py — weight from the lowest amount held while voting (2026-11-26)
+
+The user chose, for testnet session 4 and as the proposal to the DAO, that a
+seat's eligible ASASTATS is the **lowest total it held from the start round to
+the end round** (`dao-voting/PLAN-MINIMUM-WEIGHT.md` in the workspace), and that
+the period is the voting window only, with no snapshot before it ("involving a
+snapshot adds to the confusion"). That replaces the sealed snapshot of
+2026-11-15; everything about `set_snapshot`, `seal_snapshot` and `_eligible`
+above describes the earlier contract.
+
+- **No amounts before voting.** They cannot be known or sealed before the first
+  vote, so `vote` records only the option and `votes_of`, and creates the
+  ballot box itself (the app account pays its MBR, 0.0293 ALGO). Any account
+  whose `votes_of` is above zero can vote; a seat that held nothing ends with
+  weight 0. Totals stay zero until `set_final`.
+- **`set_final`** (admin, after the end round, until the seal) writes each
+  voter's lowest amount and moves the totals by the difference, so corrections
+  are O(1) per seat and `finalize` keeps no loop over ballots. `weighed_count`
+  must equal `voters_count` before the seal, so no voter can be left out.
+- **`seal_final`** stores the final file's sha256, not before `seal_round`,
+  which `create_session` takes so that the review period is on chain (the
+  user chose 2 days).
+- **Given up, accepted by the user:** the plan's on-chain bound "the admin can
+  only lower a weight" (it needed an R1 amount sealed before voting). Trust in
+  the amounts rests on the published file, the review and `dapp.tally`.
+  Totals during voting are not on chain; the website shows "so far" totals
+  from a published engine file instead (the lowest amount so far can only go
+  down, so they are an upper bound).
+- **Abstain** (user, 2026-11-26, same update): `create_session` takes its
+  index, 255 for none. `finalize` leaves it out of the winner choice and out of
+  the total the winner must beat, and keeps it in the turnout and the quorum.
+  At least two options besides Abstain.
+- **`Voted`** keeps its signature, so its selector is unchanged, but the last
+  field is now `max_votes`, not the weight (there is none at vote time).
+- **Box layouts changed** (session 187 → 196 bytes, ballot 25 → 26), so the
+  update cannot reuse app 775947805, whose session boxes 1–3 have the old
+  layout: a new testnet app is deployed and its sessions start at 1.
+
+### `FINAL_SEATS_PER_CALL` (dapp/configuration.py)
+
+2026-11-26, measured with `simulate` on localnet: `set_final` costs 111 opcodes
+plus 112 per seat, so 5 seats use 671 of the 700 budget and 7 failed ("dynamic
+cost budget exceeded" in the first localnet run). 4 seats (559) leave room; 139
+voters take 35 calls. Raising it needs `ensure_budget` (inner OpUp calls paid
+by the admin) or a cheaper loop.
+
+## dapp/network.py — holdings rounds (2026-11-26)
+
+ASASTATS live on mainnet, so a testnet session reads mainnet holdings
+(`HOLDINGS_NETWORK`). `holdings_rounds` maps the session's start and end rounds
+to the last mainnet rounds whose blocks are not after those rounds' times (a
+binary search over `block_info`); on mainnet they are the session's own
+rounds. `sessions period` prints the engine command with them, `final` and
+`seal-final` refuse a file for other rounds, and the tally checks the same.
